@@ -25,13 +25,19 @@
   config-map)
 
 (defn formatter-args [formatter fname]
-  (let [{:strs [args package]} formatter]
-    (into
-      ["nix" "run" (str "nixpkgs#" package) "--"]
-      (for [arg args]
-        (if (#{"@" "*@"} arg)
-          fname
-          arg)))))
+  (let [{:strs [args bin-name package]} formatter
+        shell-args (for [arg args]
+                     (if (#{"@" "*@"} arg)
+                       fname
+                       arg))]
+    (if bin-name
+      (into
+        ["nix" "shell" (str "nixpkgs#" package)
+         "--command" bin-name]
+        shell-args)
+      (into
+        ["nix" "run" (str "nixpkgs#" package) "--"]
+        shell-args))))
 
 (defn formatter-for-file [formatters fname]
   (if-let [id (get (:by-filename formatters) fname)]
