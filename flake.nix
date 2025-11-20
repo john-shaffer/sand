@@ -28,12 +28,15 @@
         sandSrc = lib.sources.sourceFilesBySuffices self [
           ".clj"
           ".edn"
+        ];
+        sandData = lib.sources.sourceFilesBySuffices self [
           ".json"
         ];
         sandBin = clj-nix.lib.mkCljApp {
           pkgs = nixpkgs.legacyPackages.${system};
           modules = [
             {
+              lockfile = self + /deps-lock.json;
               main-ns = "sand.cli";
               name = "sand";
               nativeImage.enable = true;
@@ -49,7 +52,7 @@
             mkdir -p $out/bin
             mkdir -p $out/share/sand
             cp ${sandBin}/bin/sand $out/bin/sand
-            cp ${sandSrc}/schema/sand.toml.latest.schema.json $out/share/sand
+            cp ${sandData}/schema/sand.toml.latest.schema.json $out/share/sand
           '';
         };
         runtimePaths = [
