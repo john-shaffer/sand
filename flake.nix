@@ -67,7 +67,7 @@
               mkdir -p $out/bin
               makeWrapper ${sandUnwrapped}/bin/sand $out/bin/sand \
                 --prefix PATH : ${lib.makeBinPath runtimePaths} \
-                --set-default SAND_SCHEMA ${sandSrc}/share/sand/sand.toml.latest.schema.json
+                --set-default SAND_SCHEMA ${sandUnwrapped}/share/sand/sand.toml.latest.schema.json
             '';
       in
       {
