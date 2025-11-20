@@ -5,7 +5,7 @@
    [clojure.java.process :as p]
    [clojure.string :as str]
    [clojure.tools.cli :refer [parse-opts]]
-   [sand.core :as sand]
+   [sand.core :as core]
    [toml-clj.core :as toml])
   (:gen-class))
 
@@ -163,7 +163,7 @@
           base-dir (fs/parent file)
           config-str (slurp file)
           _ (check-config-str config-str options)
-          {:strs [shell]} (sand/conform-config (toml/read-string config-str))]
+          {:strs [shell]} (core/conform-config (toml/read-string config-str))]
       (p/exec
         {:dir base-dir
          :env (get shell "env")
