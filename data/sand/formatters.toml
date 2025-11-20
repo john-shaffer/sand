@@ -3,7 +3,7 @@
 #   "*@" means multiple files can be passed as separate arguments here.
 # bin-name: Binary to run, if different from the package's default.
 # extensions: List of file extensions this formatter works on.
-# files: List of exact filenames this formatter works on.
+# filenames: List of exact filenames this formatter works on.
 # package: The name of the package in nixpkgs. See https://search.nixos.org.
 
 [go]
@@ -24,7 +24,7 @@ package = "jsonfmt"
 
 [just]
 args = ["--fmt", "--unstable", "-f", "@"]
-files = ["justfile"]
+filenames = ["justfile"]
 package = "just"
 
 [nixfmt]
