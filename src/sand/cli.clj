@@ -28,10 +28,13 @@
     [["-f" "--file FILE" "Configuration file"
       :default "sand.toml"]]}
    "format"
-   {:description "Format a config file."
+   {:description "Format a source file."
     :options
     [["-f" "--file FILE" "Configuration file"
-      :default "sand.toml"]]}
+      :default "sand.toml"]
+     [nil nil "File to format"
+      :id :files-to-format
+      :required "FILE"]]}
    "shell"
    {:description
     "Start a development shell."
@@ -188,14 +191,17 @@
     (when-not (zero? exit)
       (System/exit exit))))
 
-(defn fmt [{:keys [options]}]
-  (let [{:keys [file]} options
-        p (p/start
-            {:err :inherit :out :inherit}
-            "taplo" "format" "--no-auto-config" file)
-        exit @(p/exit-ref p)]
-    (when-not (zero? exit)
-      (System/exit exit))))
+(defn fmt [{:keys [arguments]}]
+  (let [formatters (-> "SAND_DATA_DIR"
+                     System/getenv
+                     (str "/formatters.toml")
+                     slurp
+                     toml/read-string
+                     core/compile-formatters)]
+    (doseq [fname arguments
+            :let [formatter (core/formatter-for-file formatters (fs/file-name fname))]
+            :when formatter]
+      (apply p/exec (core/formatter-args formatter fname)))))
 
 (defn -main [& args]
   (let [parsed-opts (validate-args args)
