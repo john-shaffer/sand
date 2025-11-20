@@ -53,6 +53,7 @@
           '';
         };
         runtimePaths = [
+          pkgs.git
           pkgs.taplo
         ];
         sandWrapped =
