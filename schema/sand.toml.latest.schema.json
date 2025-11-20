@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft-04/schema",
+  "title": "sand.toml",
+  "description": "Development environment configuration.",
+  "type": "object",
+  "properties": {
+    "shell": {
+      "type": "object",
+      "description": "Development shell options.",
+      "properties": {
+        "env": {
+          "type": "object",
+          "description": "Environment variables to assign in the shell.",
+          "additionalProperties": {
+            "type": "string",
+            "description": "The value of an environment variable in the shell."
+          }
+        }
+      }
+    }
+  }
+}

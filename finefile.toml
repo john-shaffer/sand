@@ -1,0 +1,23 @@
+[defaults.commands]
+shell = "none"
+warmup-runs = 1
+
+[commands.clojure-help]
+command = "just run -h"
+tags = ["clojure", "help"]
+
+[commands.clojure-version]
+command = "just run --version"
+tags = ["clojure", "version"]
+
+[commands.native-help]
+command = "result/bin/sand -h"
+tags = ["help", "native"]
+
+[commands.native-version]
+command = "result/bin/sand --version"
+tags = ["native", "version"]
+
+[plots.whisker]
+file = "plot-whisker.png"
+type = "whisker"

@@ -1,0 +1,10 @@
+.*
+!.cljfmt.edn
+!.editorconfig
+!.envrc
+!.gitignore
+!.standard-clj.edn
+
+bench*.json
+plot*.png
+result
