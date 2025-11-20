@@ -25,6 +25,7 @@
         overlays = [ clj-nix.overlays.default ];
       };
       let
+        lockfile = lib.sources.sourceByRegex self [ "^deps-lock.json$" ];
         sandSrc = lib.sources.sourceFilesBySuffices self [
           ".clj"
           ".edn"
@@ -37,7 +38,7 @@
           pkgs = nixpkgs.legacyPackages.${system};
           modules = [
             {
-              lockfile = self + /deps-lock.json;
+              lockfile = lockfile + /deps-lock.json;
               main-ns = "sand.cli";
               name = "sand";
               nativeImage.enable = true;
