@@ -1,0 +1,43 @@
+# args:
+#   "@" means one file can be passed as an argument here.
+#   "*@" means multiple files can be passed as separate arguments here.
+# bin-name: Binary to run, if different from the package's default.
+# extensions: List of file extensions this formatter works on.
+# files: List of exact filenames this formatter works on.
+# package: The name of the package in nixpkgs. See https://search.nixos.org.
+
+[go]
+args = ["-w", "*@"]
+bin-name = "gofmt"
+extensions = ["go"]
+package = "go"
+
+[hujsonfmt]
+args = ["-w", "*@"]
+extensions = ["hujson"]
+package = "hujsonfmt"
+
+[jsonfmt]
+args = ["-w", "*@"]
+extensions = ["json"]
+package = "jsonfmt"
+
+[just]
+args = ["--fmt", "--unstable", "-f", "@"]
+files = ["justfile"]
+package = "just"
+
+[nixfmt]
+args = ["*@"]
+extensions = ["nix"]
+package = "nixfmt"
+
+[rustfmt]
+args = ["*@"]
+extensions = ["rs"]
+package = "rustfmt"
+
+[taplo]
+args = ["format", "*@"]
+extensions = ["toml"]
+package = "taplo"
