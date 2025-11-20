@@ -31,6 +31,7 @@
         ];
         sandData = lib.sources.sourceFilesBySuffices self [
           ".json"
+          ".toml"
         ];
         sandBin = clj-nix.lib.mkCljApp {
           pkgs = nixpkgs.legacyPackages.${system};
@@ -49,9 +50,9 @@
           inherit (sandBin) meta name version;
           phases = [ "installPhase" ];
           installPhase = ''
-            mkdir -p $out/bin
-            mkdir -p $out/share/sand
+            mkdir -p $out/bin $out/share/sand
             cp ${sandBin}/bin/sand $out/bin/sand
+            cp -r ${sandData}/data/sand $out/share
             cp ${sandData}/schema/sand.toml.latest.schema.json $out/share/sand
           '';
         };
@@ -70,6 +71,7 @@
               mkdir -p $out/bin
               makeWrapper ${sandUnwrapped}/bin/sand $out/bin/sand \
                 --prefix PATH : ${lib.makeBinPath runtimePaths} \
+                --set-default SAND_DATA_DIR ${sandUnwrapped}/share/sand \
                 --set-default SAND_SCHEMA ${sandUnwrapped}/share/sand/sand.toml.latest.schema.json
             '';
       in
@@ -93,6 +95,7 @@
             echo -e "Run '\033[1mjust <recipe>\033[0m' to get started"
             just --list
           '';
+          SAND_DATA_DIR = "data/sand";
         };
         packages = {
           default = sandWrapped;
