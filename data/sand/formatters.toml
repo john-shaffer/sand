@@ -7,6 +7,7 @@
 # package: The name of the package in nixpkgs. See https://search.nixos.org.
 
 [go]
+[gofmt]
 args = ["-w", "*@"]
 bin-name = "gofmt"
 extensions = ["go"]
