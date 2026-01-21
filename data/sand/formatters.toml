@@ -6,7 +6,12 @@
 # filenames: List of exact filenames this formatter works on.
 # package: The name of the package in nixpkgs. See https://search.nixos.org.
 
-[go]
+[clang-format]
+args = ["-i", "*@"]
+bin-name = "clang-format"
+extensions = ["c", "cpp", "h"]
+package = "clang-tools"
+
 [gofmt]
 args = ["-w", "*@"]
 bin-name = "gofmt"
