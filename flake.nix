@@ -2,14 +2,13 @@
   description = "sand development environments";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     clj-nix = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:jlesquembre/clj-nix";
     };
     finefile = {
       inputs.clj-nix.follows = "clj-nix";
-      inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:john-shaffer/finefile";
     };
@@ -25,6 +24,7 @@
         overlays = [ clj-nix.overlays.default ];
       };
       let
+        jdkPackage = pkgs.jdk25_headless;
         lockfile = lib.sources.sourceByRegex self [ "^deps-lock.json$" ];
         sandSrc = lib.sources.sourceFilesBySuffices self [
           ".clj"
@@ -38,10 +38,12 @@
           pkgs = nixpkgs.legacyPackages.${system};
           modules = [
             {
+              jdk = jdkPackage;
               lockfile = lockfile + /deps-lock.json;
               main-ns = "sand.cli";
               name = "sand";
               nativeImage.enable = true;
+              nativeImage.graalvm = graalvmPackages.graalvm-ce;
               projectSrc = sandSrc;
               version = "0.1.0";
             }
