@@ -1,3 +1,4 @@
+#:schema ./test.schema.json
 format = "one-turn"
 name = "Unknown file extension is ignored"
 

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sand Test Case",
+  "type": "object",
+  "required": [
+    "format",
+    "name",
+    "run"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": [
+        "one-turn"
+      ],
+      "description": "Test format type"
+    },
+    "name": {
+      "type": "string",
+      "description": "Test name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of what this test verifies"
+    },
+    "files": {
+      "type": "object",
+      "description": "Files to create before running the test",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "File content"
+          }
+        }
+      }
+    },
+    "run": {
+      "type": "string",
+      "description": "Shell command to execute"
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "type": "object",
+          "description": "Expected file contents after running",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "Expected file content"
+              },
+              "exists": {
+                "type": "boolean",
+                "description": "Whether file should exist (default: true)"
+              }
+            }
+          }
+        },
+        "stdout": {
+          "type": "string",
+          "description": "Expected stdout"
+        },
+        "stderr": {
+          "type": "string",
+          "description": "Expected stderr"
+        },
+        "exit": {
+          "type": "integer",
+          "description": "Expected exit code",
+          "default": 0
+        }
+      }
+    }
+  }
+}
