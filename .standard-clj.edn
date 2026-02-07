@@ -1,1 +1,1 @@
-{:include ["*.edn" "src/**/*.clj"]}
+{:include ["*.edn" "src/**/*.clj" "test/**/*.clj"]}
