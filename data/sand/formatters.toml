@@ -6,6 +6,11 @@
 # filenames: List of exact filenames this formatter works on.
 # package: The name of the package in nixpkgs. See https://search.nixos.org.
 
+[black]
+args = ["*@"]
+extensions = ["py"]
+package = "black"
+
 [clang-format]
 args = ["-i", "*@"]
 bin-name = "clang-format"
@@ -37,6 +42,11 @@ package = "just"
 args = ["*@"]
 extensions = ["nix"]
 package = "nixfmt"
+
+[prettier]
+args = ["--write", "*@"]
+extensions = ["js", "jsx", "ts", "tsx"]
+package = "prettier"
 
 [rustfmt]
 args = ["*@"]
