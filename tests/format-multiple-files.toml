@@ -1,0 +1,36 @@
+format = "one-turn"
+name = "Format multiple files"
+
+run = "sand format main.go config.toml"
+
+[files."main.go"]
+content = """
+package main
+
+func main(){
+fmt.Println(  "hello" )
+}
+"""
+
+[files."config.toml"]
+content = """
+[server]
+port=8080
+host="localhost"
+"""
+
+[expected.files."main.go"]
+content = """
+package main
+
+func main() {
+	fmt.Println("hello")
+}
+"""
+
+[expected.files."config.toml"]
+content = """
+[server]
+port = 8080
+host = "localhost"
+"""

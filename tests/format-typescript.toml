@@ -1,0 +1,18 @@
+format = "one-turn"
+name = "Format TypeScript file"
+
+run = "sand format example.ts"
+
+[files."example.ts"]
+content = """
+function hello(name:string):string{
+return "Hello, "+name
+}
+"""
+
+[expected.files."example.ts"]
+content = """
+function hello(name: string): string {
+  return "Hello, " + name;
+}
+"""

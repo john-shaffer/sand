@@ -1,0 +1,16 @@
+format = "one-turn"
+name = "Unknown file extension is ignored"
+
+run = "sand format data.xyz"
+
+[files."data.xyz"]
+content = """
+some random content
+that should not change
+"""
+
+[expected.files."data.xyz"]
+content = """
+some random content
+that should not change
+"""

@@ -1,0 +1,16 @@
+format = "one-turn"
+name = "Format Python file"
+
+run = "sand format example.py"
+
+[files."example.py"]
+content = """
+def hello(   name ):
+    return "Hello, "+name
+"""
+
+[expected.files."example.py"]
+content = """
+def hello(name):
+    return "Hello, " + name
+"""
