@@ -113,6 +113,7 @@
     (when-not (fs/exists? dot-sand-dir)
       (fs/create-dir dot-sand-dir))
     (let [data-path (fs/path dot-sand-dir "sand.json")
+          shell-nix-path (fs/path dot-sand-dir "shell.nix")
           existing-data (try
                           (with-open [rdr (-> data-path fs/file io/reader)]
                             (json/read rdr))
@@ -120,4 +121,10 @@
           data (generate-sand-json existing-data opts)]
       (when (not= existing-data data)
         (with-open [w (-> data-path fs/file io/writer)]
-          (json/write data w :indent true))))))
+          (json/write data w :indent true)))
+      (when-not (fs/exists? shell-nix-path)
+        (fs/copy
+          (-> "SAND_DATA_DIR"
+            System/getenv
+            (fs/path "shell.nix"))
+          shell-nix-path)))))
