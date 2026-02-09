@@ -1,6 +1,8 @@
 (ns sand.core
   (:require
    [babashka.fs :as fs]
+   [clojure.data.json :as json]
+   [clojure.java.io :as io]
    [clojure.string :as str])
   (:import
    (java.nio.file AccessDeniedException InvalidPathException Path)))
@@ -58,6 +60,17 @@
         (sort-by #(get-in % ["locked" "lastModified"]))
         last second))))
 
+(defn find-dot-sand-dir
+  "Finds a .sand dir searching upward. Finds either an existing .sand dir
+   or creates a path next to an existing .git dir. Returns nil if neither
+   is found."
+  ^Path [dir]
+  (or (find-filename-up dir ".sand")
+    (some-> (find-filename-up dir ".git")
+      fs/parent
+      fs/canonicalize
+      (fs/path ".sand"))))
+
 (defn formatter-args [formatter fname nixpkgs-input]
   (let [{:strs [args bin-name package]} formatter
         shell-args (for [arg args]
@@ -84,3 +97,23 @@
     (let [ext (fs/extension fname)]
       (some->> (get (:by-extension formatters) ext)
         (get (:by-id formatters))))))
+
+(defn generate-sand-json
+  "Generates a sand.json file. `existing` may be nil or pre-existing data."
+  [existing {:keys [nixpkgs-input]}]
+  (cond-> (or existing {})
+    nixpkgs-input (assoc "nixpkgs" nixpkgs-input)))
+
+(defn write-dot-sand-files! [dir opts]
+  (when-let [dot-sand-dir (find-dot-sand-dir dir)]
+    (when-not (fs/exists? dot-sand-dir)
+      (fs/create-dir dot-sand-dir))
+    (let [data-path (fs/path dot-sand-dir "sand.json")
+          existing-data (try
+                          (with-open [rdr (-> data-path fs/file io/reader)]
+                            (json/read rdr))
+                          (catch Exception _ nil))
+          data (generate-sand-json existing-data opts)]
+      (when (not= existing-data data)
+        (with-open [w (-> data-path fs/file io/writer)]
+          (json/write data w :indent true))))))
