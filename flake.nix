@@ -43,7 +43,6 @@
               main-ns = "sand.cli";
               name = "sand";
               nativeImage.enable = true;
-              nativeImage.graalvm = graalvmPackages.graalvm-ce;
               projectSrc = sandSrc;
               version = "0.1.0";
             }
