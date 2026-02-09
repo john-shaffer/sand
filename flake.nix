@@ -32,6 +32,7 @@
         ];
         sandData = lib.sources.sourceFilesBySuffices self [
           ".json"
+          ".nix"
           ".toml"
         ];
         sandBin = clj-nix.lib.mkCljApp {
