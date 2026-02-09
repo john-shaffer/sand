@@ -203,11 +203,17 @@
                      (with-open [rdr (-> path fs/file io/reader)]
                        (json/read rdr)))
         nixpkgs-input (when flake-lock
-                        (core/find-nixpkgs-input flake-lock))]
-    (core/write-dot-sand-files! "." {:nixpkgs-input nixpkgs-input})
-    (doseq [fname arguments
-            :let [formatter (core/formatter-for-file formatters (fs/file-name fname))]
-            :when formatter]
+                        (core/find-nixpkgs-input flake-lock))
+        actions (for [fname arguments
+                      :let [formatter (core/formatter-for-file formatters (fs/file-name fname))]
+                      :when formatter]
+                  {:fname fname
+                   :formatter formatter})
+        packages (set (map #(get-in % [:formatter "package"]) actions))]
+    (core/write-dot-sand-files! "."
+      {:nixpkgs-input nixpkgs-input
+       :packages packages})
+    (doseq [{:keys [fname formatter]} actions]
       (apply p/exec (core/formatter-args formatter fname nixpkgs-input)))))
 
 (defn -main [& args]

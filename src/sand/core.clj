@@ -100,9 +100,13 @@
 
 (defn generate-sand-json
   "Generates a sand.json file. `existing` may be nil or pre-existing data."
-  [existing {:keys [nixpkgs-input]}]
+  [existing {:keys [nixpkgs-input packages]}]
   (cond-> (or existing {})
-    nixpkgs-input (assoc "nixpkgs" nixpkgs-input)))
+    nixpkgs-input (assoc "nixpkgs" nixpkgs-input)
+    (seq packages) (assoc "shellPkgs"
+                     (->> packages
+                       (into (set (get existing "shellPkgs")))
+                       sort))))
 
 (defn write-dot-sand-files! [dir opts]
   (when-let [dot-sand-dir (find-dot-sand-dir dir)]
