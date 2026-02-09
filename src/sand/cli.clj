@@ -1,6 +1,7 @@
 (ns sand.cli
   (:require
    [babashka.fs :as fs]
+   [clojure.data.json :as json]
    [clojure.java.io :as io]
    [clojure.java.process :as p]
    [clojure.string :as str]
@@ -197,11 +198,16 @@
                      (str "/formatters.toml")
                      slurp
                      toml/read-string
-                     core/compile-formatters)]
+                     core/compile-formatters)
+        flake-lock (when-let [path (core/find-filename-up "." "flake.lock")]
+                     (with-open [rdr (-> path fs/file io/reader)]
+                       (json/read rdr)))
+        nixpkgs-input (when flake-lock
+                        (core/find-nixpkgs-input flake-lock))]
     (doseq [fname arguments
             :let [formatter (core/formatter-for-file formatters (fs/file-name fname))]
             :when formatter]
-      (apply p/exec (core/formatter-args formatter fname)))))
+      (apply p/exec (core/formatter-args formatter fname nixpkgs-input)))))
 
 (defn -main [& args]
   (let [parsed-opts (validate-args args)

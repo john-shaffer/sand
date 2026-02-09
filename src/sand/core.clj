@@ -1,6 +1,9 @@
 (ns sand.core
   (:require
-   [babashka.fs :as fs]))
+   [babashka.fs :as fs]
+   [clojure.string :as str])
+  (:import
+   (java.nio.file AccessDeniedException InvalidPathException Path)))
 
 (defn compile-formatters [data]
   {:by-extension
@@ -24,19 +27,55 @@
   [config-map]
   config-map)
 
-(defn formatter-args [formatter fname]
+(defn find-filename-up
+  "Finds a file or directory name, looking first in the `dir` directory
+   and then in parent directories recursively. Returns the [[java.nio.file.Path]]
+   or nil if not found or inaccessible."
+  ^Path [dir filename]
+  (try
+    (loop [current (fs/absolutize dir)]
+      (when current
+        (let [candidate (fs/path current filename)]
+          (if (fs/exists? candidate)
+            candidate
+            (recur (fs/parent current))))))
+    (catch AccessDeniedException _ nil)
+    (catch InvalidPathException _ nil)
+    (catch SecurityException _ nil)))
+
+(defn find-nixpkgs-input
+  "Finds a nixpkgs input, if any, from a parsed flake.lock map."
+  [m]
+  (let [candidate (get-in m ["nodes" "nixpkgs"])]
+    (if (= "github" (get-in candidate ["locked" "type"]))
+      candidate
+      (->> (get m "nodes")
+        (filter
+          (fn [[_ {:strs [locked]}]]
+            (and (= "github" (get locked "type"))
+              (= "nixpkgs" (some-> (get locked "repo") str/lower-case))
+              (= "nixos" (some-> (get locked "owner") str/lower-case)))))
+        (sort-by #(get-in % ["locked" "lastModified"]))
+        last second))))
+
+(defn formatter-args [formatter fname nixpkgs-input]
   (let [{:strs [args bin-name package]} formatter
         shell-args (for [arg args]
                      (if (#{"@" "*@"} arg)
                        fname
-                       arg))]
+                       arg))
+        {:strs [owner repo rev type]} (get nixpkgs-input "locked")
+        nixpkgs-ref (if (= "github" type)
+                      (str type ":" owner "/" repo "/" rev)
+                      "github:NixOS/nixpkgs")
+        package-ref (str nixpkgs-ref "#" package)]
     (if bin-name
       (into
-        ["nix" "shell" (str "nixpkgs#" package)
+        ["nix" "shell" package-ref
          "--command" bin-name]
         shell-args)
       (into
-        ["nix" "run" (str "nixpkgs#" package) "--"]
+        ["nix" "run" package-ref "--"]
         shell-args))))
 
 (defn formatter-for-file [formatters fname]
