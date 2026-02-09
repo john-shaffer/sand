@@ -3,6 +3,7 @@
 !.editorconfig
 !.envrc
 !.gitignore
+!.sand
 !.standard-clj.edn
 
 bench*.json
