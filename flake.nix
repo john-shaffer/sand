@@ -77,6 +77,7 @@
                 --set-default SAND_DATA_DIR ${sandUnwrapped}/share/sand \
                 --set-default SAND_SCHEMA ${sandUnwrapped}/share/sand/sand.toml.latest.schema.json
             '';
+        sandShell = import ./.sand/shell.nix { inherit pkgs; };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -87,12 +88,11 @@
               deps-lock
               fd
               finefile.packages.${system}.default
-              jsonfmt
               just
-              nixfmt-rfc-style
               omnix
             ]
-            ++ runtimePaths;
+            ++ runtimePaths
+            ++ sandShell.buildInputs;
           shellHook = ''
             echo
             echo -e "Run '\033[1mjust <recipe>\033[0m' to get started"
