@@ -1,0 +1,22 @@
+#:schema ./test.schema.json
+format = "one-turn"
+name = "Format PHP file"
+
+run = "sand format example.php"
+
+[files."example.php"]
+content = """
+<?php
+function hello(   $name ) {
+    return 'Hello, '.$name;
+}
+"""
+
+[expected.files."example.php"]
+content = """
+<?php
+function hello($name)
+{
+    return 'Hello, ' . $name;
+}
+"""
