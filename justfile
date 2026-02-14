@@ -32,7 +32,7 @@ test *args:
     SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner result/bin/sand {{ args }}
 
 # Update dependencies
-update: && update-deps-lock
+update: && update-deps-lock format
     nix flake update
     clj -M:antq --upgrade --force
 
