@@ -199,17 +199,13 @@
                      slurp
                      toml/read-string
                      core/compile-formatters)
-        flake-lock (when-let [path (core/find-filename-up "." "flake.lock")]
-                     (with-open [rdr (-> path fs/file io/reader)]
-                       (json/read rdr)))
-        nixpkgs-input (when flake-lock
-                        (core/find-nixpkgs-input flake-lock))
         actions (for [fname arguments
                       :let [formatter (core/formatter-for-file formatters (fs/file-name fname))]
                       :when formatter]
                   {:fname fname
                    :formatter formatter})
-        packages (set (map #(get-in % [:formatter "package"]) actions))]
+        packages (set (map #(get-in % [:formatter "package"]) actions))
+        nixpkgs-input (core/find-flake-nixpkgs ".")]
     (core/write-dot-sand-files! "."
       {:nixpkgs-input nixpkgs-input
        :packages packages})

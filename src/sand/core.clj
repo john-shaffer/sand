@@ -60,6 +60,16 @@
         (sort-by #(get-in % ["locked" "lastModified"]))
         last second))))
 
+(defn find-flake-nixpkgs
+  "Finds a nixpkgs input for the flake for the given dir.
+   Returns nil if a flake or suitable nixpkgs is not found."
+  [dir]
+  (let [flake-lock (when-let [path (find-filename-up dir "flake.lock")]
+                     (with-open [rdr (-> path fs/file io/reader)]
+                       (json/read rdr)))]
+    (when flake-lock
+      (find-nixpkgs-input flake-lock))))
+
 (defn find-dot-sand-dir
   "Finds a .sand dir searching upward. Finds either an existing .sand dir
    or creates a path next to an existing .git dir. Returns nil if neither
