@@ -208,7 +208,11 @@
                      toml/read-string
                      core/compile-formatters)
         files (if (seq arguments)
-                arguments
+                (let [grouped (group-by #(fs/directory? %) arguments)]
+                  (concat
+                    (get grouped false)
+                    (when-let [dirs (seq (get grouped true))]
+                      (git/list-unignored-files {} dirs))))
                 (git/list-unignored-files {}))
         actions (for [fname files
                       :let [formatter (core/formatter-for-file formatters (fs/file-name fname))]

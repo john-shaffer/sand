@@ -25,10 +25,11 @@
             (ensure-zero-exit p)))
         (ensure-zero-exit p)))))
 
-(defn list-unignored-files [process-opts]
-  (let [p (p/start
+(defn list-unignored-files [process-opts & [paths]]
+  (let [p (apply p/start
             (assoc process-opts
               :err :inherit
               :out :pipe)
-            "git" "ls-files" "--others" "--cached" "--exclude-standard")]
+            "git" "ls-files" "--others" "--cached" "--exclude-standard"
+            paths)]
     (get-out-lines p (line-seq (io/reader (p/stdout p))))))
