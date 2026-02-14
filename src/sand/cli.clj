@@ -163,18 +163,25 @@
 
 (defn shell [{:keys [options]}]
   (fs/with-temp-dir [_tmpdir {:prefix "sand"}]
-    (let [{:keys [file]} options
-          base-dir (fs/parent file)
-          config-str (slurp file)
-          _ (check-config-str config-str options)
-          {:strs [shell]} (core/conform-config (toml/read-string config-str))]
+    (let [; {:keys [file]} options
+          ; TODO Use sand.toml if exists
+          ; base-dir (fs/parent file)
+          base-dir "."
+          ; config-str (slurp file)
+          ; _ (check-config-str config-str options)
+          ; {:strs [shell]} (core/conform-config (toml/read-string config-str))
+          shell {}
+          nixpkgs-input (core/find-flake-nixpkgs base-dir)]
+      (core/write-dot-sand-files! base-dir
+        {:nixpkgs-input nixpkgs-input
+         :packages []})
       (p/exec
         {:dir base-dir
          :env (get shell "env")
          :err :inherit
          :in :inherit
          :out :inherit}
-        "nix" "develop"))))
+        "nix-shell" ".sand"))))
 
 (defn check [{:keys [options]}]
   (let [{:keys [debug file]} options
