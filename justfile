@@ -3,7 +3,7 @@ repo_root := `pwd`
 alias b := build
 alias fmt := format
 alias t := test
-alias u := update-deps
+alias u := update
 
 [private]
 list:
@@ -32,7 +32,7 @@ test *args:
     SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner result/bin/sand {{ args }}
 
 # Update dependencies
-update-deps: && update-deps-lock
+update: && update-deps-lock
     nix flake update
     clj -M:antq --upgrade --force
 
