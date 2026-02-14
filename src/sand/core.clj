@@ -152,7 +152,8 @@
           data (generate-sand-json existing-data opts)]
       (when (not= existing-data data)
         (with-open [w (-> data-path fs/file io/writer)]
-          (json/write data w :indent true)))
+          (json/write data w :indent true)
+          (.write w "\n")))
       (when-not (fs/exists? shell-nix-path)
         (fs/copy
           (-> "SAND_DATA_DIR"
