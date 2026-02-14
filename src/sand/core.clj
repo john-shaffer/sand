@@ -34,14 +34,16 @@
   "Finds a file or directory name, looking first in the `dir` directory
    and then in parent directories recursively. Returns the [[java.nio.file.Path]]
    or nil if not found or inaccessible."
-  ^Path [dir filename]
+  ^Path [dir filenames]
   (try
     (loop [current (fs/absolutize dir)]
       (when current
-        (let [candidate (fs/path current filename)]
-          (if (fs/exists? candidate)
-            candidate
-            (recur (fs/parent current))))))
+        (if-let [found (some #(let [candidate (fs/path current %)]
+                                (when (fs/exists? candidate)
+                                  candidate))
+                             filenames)]
+          found
+          (recur (fs/parent current)))))
     (catch AccessDeniedException _ nil)
     (catch InvalidPathException _ nil)
     (catch SecurityException _ nil)))
@@ -65,7 +67,7 @@
   "Finds a nixpkgs input for the flake for the given dir.
    Returns nil if a flake or suitable nixpkgs is not found."
   [dir]
-  (let [flake-lock (when-let [path (find-filename-up dir "flake.lock")]
+  (let [flake-lock (when-let [path (find-filename-up dir ["flake.lock"])]
                      (with-open [rdr (-> path fs/file io/reader)]
                        (json/read rdr)))]
     (when flake-lock
@@ -76,8 +78,8 @@
    or creates a path next to an existing .git dir. Returns nil if neither
    is found."
   ^Path [dir]
-  (or (find-filename-up dir ".sand")
-    (some-> (find-filename-up dir ".git")
+  (or (find-filename-up dir [".sand"])
+    (some-> (find-filename-up dir [".git"])
       fs/parent
       fs/canonicalize
       (fs/path ".sand"))))
