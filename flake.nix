@@ -88,7 +88,6 @@
               deps-lock
               finefile.packages.${system}.default
               just
-              omnix
             ]
             ++ runtimePaths
             ++ sandShell.buildInputs;
