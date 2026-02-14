@@ -125,7 +125,10 @@
    inputs, keeping them alive as a GC root. Returns the out-link path."
   [dot-sand-dir]
   (let [shell-nix (str (fs/canonicalize (fs/path dot-sand-dir "shell.nix")))
-        out-link (str (fs/path dot-sand-dir "shell"))
+        gcroots-dir (fs/path dot-sand-dir "gcroots")
+        _ (when-not (fs/exists? gcroots-dir)
+            (fs/create-dir gcroots-dir))
+        out-link (str (fs/path gcroots-dir "shell"))
         expr (str "(import " shell-nix " {}).inputDerivation")
         proc (p/start
                {:err :inherit :out :inherit}
