@@ -20,11 +20,8 @@ build:
 
 # Format source and then check for unfixable issues
 format:
-    fd -e json -x jsonfmt -w
-    just --fmt --unstable
-    fd -e nix -x nixfmt
+    just run format
     standard-clj fix
-    fd -e toml -x taplo format
 
 # Run sand
 run *args:

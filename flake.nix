@@ -86,7 +86,6 @@
             [
               clojure
               deps-lock
-              fd
               finefile.packages.${system}.default
               just
               omnix
