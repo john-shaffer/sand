@@ -7,6 +7,7 @@
    [clojure.string :as str]
    [clojure.tools.cli :refer [parse-opts]]
    [sand.core :as core]
+   [sand.git :as git]
    [toml-clj.core :as toml])
   (:gen-class))
 
@@ -206,7 +207,10 @@
                      slurp
                      toml/read-string
                      core/compile-formatters)
-        actions (for [fname arguments
+        files (if (seq arguments)
+                arguments
+                (git/list-unignored-files {}))
+        actions (for [fname files
                       :let [formatter (core/formatter-for-file formatters (fs/file-name fname))]
                       :when formatter]
                   {:fname fname
@@ -217,7 +221,12 @@
       {:nixpkgs-input nixpkgs-input
        :packages packages})
     (doseq [{:keys [fname formatter]} actions]
-      (apply p/exec (core/formatter-args formatter fname nixpkgs-input)))))
+      (let [proc (apply p/start
+                   {:err :inherit :out :inherit}
+                   (core/formatter-args formatter fname nixpkgs-input))
+            exit @(p/exit-ref proc)]
+        (when-not (zero? exit)
+          (System/exit exit))))))
 
 (defn -main [& args]
   (let [parsed-opts (validate-args args)
