@@ -3,6 +3,7 @@
    [babashka.fs :as fs]
    [clojure.data.json :as json]
    [clojure.java.io :as io]
+   [clojure.java.process :as p]
    [clojure.string :as str])
   (:import
    (java.nio.file AccessDeniedException InvalidPathException Path)))
@@ -118,6 +119,23 @@
                        (into (set (get existing "shellPkgs")))
                        sort))))
 
+(defn build-shell!
+  "Builds the inputDerivation of .sand/shell.nix and symlinks it into
+   the .sand directory. The inputDerivation output references all build
+   inputs, keeping them alive as a GC root. Returns the out-link path."
+  [dot-sand-dir]
+  (let [shell-nix (str (fs/canonicalize (fs/path dot-sand-dir "shell.nix")))
+        out-link (str (fs/path dot-sand-dir "shell"))
+        expr (str "(import " shell-nix " {}).inputDerivation")
+        proc (p/start
+               {:err :inherit :out :inherit}
+               "nix-build" "--expr" expr
+               "--out-link" out-link)
+        exit @(p/exit-ref proc)]
+    (when-not (zero? exit)
+      (throw (ex-info "nix-build failed" {:exit exit})))
+    out-link))
+
 (defn write-dot-sand-files! [dir opts]
   (when-let [dot-sand-dir (find-dot-sand-dir dir)]
     (when-not (fs/exists? dot-sand-dir)
@@ -137,4 +155,5 @@
           (-> "SAND_DATA_DIR"
             System/getenv
             (fs/path "shell.nix"))
-          shell-nix-path)))))
+          shell-nix-path))
+      (build-shell! dot-sand-dir))))

@@ -7,5 +7,6 @@
 !.standard-clj.edn
 
 bench*.json
+gcroots
 plot*.png
 result
