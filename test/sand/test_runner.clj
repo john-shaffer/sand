@@ -169,8 +169,27 @@
     (println (str passed "/" total " tests passed"))
     {:passed passed :failed (- total passed) :total total}))
 
+(defn setup-test-to-dir [test-dir patterns target-dir]
+  (let [target (fs/path target-dir)
+        test-files (find-tests test-dir patterns)]
+    (when (empty? test-files)
+      (println "No tests found matching:" (str/join ", " patterns))
+      (System/exit 1))
+    (fs/create-dirs target)
+    (doseq [path test-files]
+      (let [test-def (load-test path)
+            test-name (get test-def "name")
+            files (get test-def "files")]
+        (println "Setting up:" test-name)
+        (setup-files target files)
+        (doseq [f (sort (keys files))]
+          (println "  " f))))
+    (println)
+    (println "Files written to" (str target))))
+
 (def cli-options
   [[nil "--sand-bin PATH" "Path to sand binary"]
+   [nil "--setup DIR" "Copy test input files into DIR instead of running"]
    [nil "--test-dir DIR" "Test directory" :default "test"]])
 
 (defn -main [& args]
@@ -178,7 +197,9 @@
     (when errors
       (doseq [e errors] (println e))
       (System/exit 1))
-    (let [{:keys [sand-bin test-dir]} options
-          opts {:sand-bin (some-> sand-bin fs/absolutize str)}
-          {:keys [failed]} (run-tests test-dir arguments opts)]
-      (System/exit (if (zero? failed) 0 1)))))
+    (let [{:keys [sand-bin setup test-dir]} options]
+      (if setup
+        (setup-test-to-dir test-dir arguments setup)
+        (let [opts {:sand-bin (some-> sand-bin fs/absolutize str)}
+              {:keys [failed]} (run-tests test-dir arguments opts)]
+          (System/exit (if (zero? failed) 0 1)))))))
