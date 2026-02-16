@@ -219,7 +219,12 @@
                       :when formatter]
                   {:fname fname
                    :formatter formatter})
-        packages (set (map #(get-in % [:formatter "package"]) actions))
+        packages (set
+                   (mapcat
+                     (fn [{:keys [formatter]}]
+                       (cons (get formatter "package")
+                         (seq (get formatter "runtime-packages"))))
+                     actions))
         nixpkgs-input (core/find-flake-nixpkgs ".")
         dot-sand-dir (core/write-dot-sand-files! "."
                        {:nixpkgs-input nixpkgs-input

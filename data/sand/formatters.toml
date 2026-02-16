@@ -7,6 +7,7 @@
 # extensions: List of file extensions this formatter works on.
 # filenames: List of exact filenames this formatter works on.
 # package: The name of the package in nixpkgs. See https://search.nixos.org.
+# runtime-packages: Additional packages needed at runtime.
 
 [black]
 args = ["*@"]
