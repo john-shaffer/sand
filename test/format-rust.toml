@@ -1,0 +1,19 @@
+#:schema ./test.schema.json
+format = "one-turn"
+name = "Format Rust file"
+
+run = "sand format main.rs"
+
+[files."main.rs"]
+content = """
+fn main( ) {
+        println!("hello");
+}
+"""
+
+[expected.files."main.rs"]
+content = """
+fn main() {
+    println!("hello");
+}
+"""
