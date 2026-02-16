@@ -1,0 +1,24 @@
+#:schema ./test.schema.json
+format = "one-turn"
+name = "Format Rust file with rustfmt.toml"
+
+run = "sand format main.rs"
+
+[files."rustfmt.toml"]
+content = """
+tab_spaces = 2
+"""
+
+[files."main.rs"]
+content = """
+fn main( ) {
+        println!("hello");
+}
+"""
+
+[expected.files."main.rs"]
+content = """
+fn main() {
+  println!("hello");
+}
+"""

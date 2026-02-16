@@ -1,7 +1,9 @@
 # args:
 #   "@" means one file can be passed as an argument here.
 #   "*@" means multiple files can be passed as separate arguments here.
+# args-config: Like args, but used when the config file is detected.
 # bin-name: Binary to run, if different from the package's default.
+# config-filenames: List of config filenames to look for.
 # extensions: List of file extensions this formatter works on.
 # filenames: List of exact filenames this formatter works on.
 # package: The name of the package in nixpkgs. See https://search.nixos.org.
@@ -55,6 +57,8 @@ package = "pretty-php"
 
 [rustfmt]
 args = ["*@"]
+args-config = ["--config-path", "{{config}}", "*@"]
+config-filenames = ["rustfmt.toml", ".rustfmt.toml"]
 extensions = ["rs"]
 package = "rustfmt"
 
