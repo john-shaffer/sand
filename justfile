@@ -29,7 +29,7 @@ run *args:
 
 # Run tests
 test *args:
-    SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner result/bin/sand {{ args }}
+    SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner --sand-bin result/bin/sand {{ args }}
 
 # Update dependencies
 update: && update-deps-lock format

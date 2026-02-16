@@ -4,15 +4,21 @@
    [clojure.java.process :as p]
    [clojure.string :as str]
    [clojure.test :as t]
+   [clojure.tools.cli :as cli]
    [toml-clj.core :as toml]))
 
 (defn load-test [path]
   (-> path slurp toml/read-string))
 
-(defn find-tests [dir]
-  (->> (fs/glob dir "*.toml")
-       (map str)
-       sort))
+(defn find-tests [dir patterns]
+  (let [globs (if (seq patterns)
+                (map #(if (str/ends-with? % ".toml") % (str % ".toml")) patterns)
+                ["*.toml"])]
+    (->> globs
+         (mapcat #(fs/glob dir %))
+         (map str)
+         distinct
+         sort)))
 
 (defn setup-files [dir files]
   (doseq [[path {:strs [content]}] files]
@@ -162,8 +168,8 @@
               (print-diff (:expected check) (:actual check) "    ")))))
       test-result)))
 
-(defn run-tests [test-dir opts]
-  (let [test-files (find-tests test-dir)
+(defn run-tests [test-dir patterns opts]
+  (let [test-files (find-tests test-dir patterns)
         results (doall (map #(run-test-file % opts) test-files))
         passed (count (filter :pass? results))
         total (count results)]
@@ -171,9 +177,16 @@
     (println (str passed "/" total " tests passed"))
     {:passed passed :failed (- total passed) :total total}))
 
+(def cli-options
+  [[nil "--sand-bin PATH" "Path to sand binary"]
+   [nil "--test-dir DIR" "Test directory" :default "test"]])
+
 (defn -main [& args]
-  (let [[sand-bin test-dir] args
-        test-dir (or test-dir "test")
-        opts {:sand-bin (some-> sand-bin fs/absolutize str)}
-        {:keys [failed]} (run-tests test-dir opts)]
-    (System/exit (if (zero? failed) 0 1))))
+  (let [{:keys [options arguments errors]} (cli/parse-opts args cli-options)]
+    (when errors
+      (doseq [e errors] (println e))
+      (System/exit 1))
+    (let [{:keys [sand-bin test-dir]} options
+          opts {:sand-bin (some-> sand-bin fs/absolutize str)}
+          {:keys [failed]} (run-tests test-dir arguments opts)]
+      (System/exit (if (zero? failed) 0 1)))))
