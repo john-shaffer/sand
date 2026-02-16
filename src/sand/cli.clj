@@ -125,9 +125,11 @@
       :else
       (assoc parsed-opts :action action))))
 
-(defn exit [status msg]
-  (println msg)
-  (System/exit status))
+(defn ^:dynamic exit
+  ([status] (System/exit status))
+  ([status msg]
+   (println msg)
+   (System/exit status)))
 
 (defn get-schema-file []
   (let [schema-file (System/getenv "SAND_SCHEMA")]
@@ -149,10 +151,10 @@
             args)
         _ (with-open [stdin (p/stdin p)]
             (io/copy config-str stdin))
-        exit @(p/exit-ref p)]
+        exit-code @(p/exit-ref p)]
     ; If validation fails, we re-run it so that we can
     ; get taplo's output.
-    (when-not (zero? exit)
+    (when-not (zero? exit-code)
       (let [p (apply p/start
                 {:err :inherit
                  :in :pipe
@@ -160,7 +162,7 @@
                 args)]
         (with-open [stdin (p/stdin p)]
           (io/copy config-str stdin)))
-      (System/exit @(p/exit-ref p)))))
+      (exit @(p/exit-ref p)))))
 
 (defn shell [{:keys [options]}]
   (fs/with-temp-dir [_tmpdir {:prefix "sand"}]
@@ -196,9 +198,9 @@
         p (apply p/start
             {:err :inherit :out :inherit}
             args)
-        exit @(p/exit-ref p)]
-    (when-not (zero? exit)
-      (System/exit exit))))
+        exit-code @(p/exit-ref p)]
+    (when-not (zero? exit-code)
+      (exit exit-code))))
 
 (defn fmt [{:keys [arguments]}]
   (let [formatters (-> "SAND_DATA_DIR"
@@ -207,6 +209,7 @@
                      slurp
                      toml/read-string
                      core/compile-formatters)
+        _ (prn formatters)
         files (if (seq arguments)
                 (let [grouped (group-by #(fs/directory? %) arguments)]
                   (concat
@@ -234,9 +237,9 @@
       (let [proc (apply p/start
                    {:err :inherit :out :inherit}
                    (core/formatter-args formatter fname shell-nix))
-            exit @(p/exit-ref proc)]
-        (when-not (zero? exit)
-          (System/exit exit))))))
+            exit-code @(p/exit-ref proc)]
+        (when-not (zero? exit-code)
+          (exit exit-code))))))
 
 (defn -main [& args]
   (let [parsed-opts (validate-args args)

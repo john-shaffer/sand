@@ -16,9 +16,14 @@
     }
   },
   "shellPkgs": [
+    "black",
+    "go",
     "jsonfmt",
     "just",
     "nixfmt",
+    "prettier",
+    "pretty-php",
+    "rustfmt",
     "taplo"
   ]
 }

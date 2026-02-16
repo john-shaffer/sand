@@ -26,7 +26,7 @@
       (fs/create-dirs (fs/parent full-path))
       (spit (str full-path) content))))
 
-(defn run-command [dir command {:keys [sand-bin]}]
+(defn run-command-process [dir command {:keys [sand-bin]}]
   (let [args (str/split command #"\s+")
         args (if (and sand-bin (= "sand" (first args)))
                (cons sand-bin (rest args))
@@ -49,6 +49,51 @@
         {:stdout ""
          :stderr (str "Failed to start process: " (first args) "\n" (.getMessage e))
          :exit 127}))))
+
+(defn run-command-inline [dir command]
+  (require 'sand.cli)
+  (let [exit-var (resolve 'sand.cli/exit)
+        main-fn @(resolve 'sand.cli/-main)
+        parts (str/split command #"\s+")
+        ;; Drop "sand" prefix, resolve file paths to absolute
+        args (if (= "sand" (first parts)) (rest parts) parts)
+        subcmd? (volatile! true)
+        cli-args (mapv (fn [arg]
+                         (cond
+                           (str/starts-with? arg "-") arg
+                           @subcmd? (do (vreset! subcmd? false) arg)
+                           :else (str (fs/path dir arg))))
+                   args)
+        out (java.io.StringWriter.)
+        err (java.io.StringWriter.)
+        exit-code (atom 0)
+        exit-fn (fn
+                  ([code] (throw (ex-info "exit" {:exit code})))
+                  ([code msg]
+                   (println msg)
+                   (throw (ex-info "exit" {:exit code}))))]
+    (try
+      (with-redefs-fn {exit-var exit-fn}
+        #(binding [*out* (java.io.PrintWriter. out true)
+                   *err* (java.io.PrintWriter. err true)]
+           (apply main-fn cli-args)))
+      (catch clojure.lang.ExceptionInfo e
+        (if (= "exit" (.getMessage e))
+          (reset! exit-code (:exit (ex-data e)))
+          (do
+            (reset! exit-code 1)
+            (.write err (str (ex-message e) "\n")))))
+      (catch Exception e
+        (reset! exit-code 1)
+        (.write err (str (.getMessage e) "\n"))))
+    {:stdout (str out)
+     :stderr (str err)
+     :exit @exit-code}))
+
+(defn run-command [dir command opts]
+  (if (:inline opts)
+    (run-command-inline dir command)
+    (run-command-process dir command opts)))
 
 (defn check-file [dir path expected]
   (let [{:strs [content exists] :or {exists true}} expected
@@ -188,7 +233,8 @@
     (println "Files written to" (str target))))
 
 (def cli-options
-  [[nil "--sand-bin PATH" "Path to sand binary"]
+  [[nil "--inline" "Invoke Clojure functions instead of a sand binary"]
+   [nil "--sand-bin PATH" "Path to sand binary"]
    [nil "--setup DIR" "Copy test input files into DIR instead of running"]
    [nil "--test-dir DIR" "Test directory" :default "test"]])
 
@@ -197,9 +243,11 @@
     (when errors
       (doseq [e errors] (println e))
       (System/exit 1))
-    (let [{:keys [sand-bin setup test-dir]} options]
+    (let [{:keys [inline sand-bin setup test-dir]} options]
       (if setup
         (setup-test-to-dir test-dir arguments setup)
-        (let [opts {:sand-bin (some-> sand-bin fs/absolutize str)}
+        (let [opts (if inline
+                     {:inline true}
+                     {:sand-bin (some-> sand-bin fs/absolutize str)})
               {:keys [failed]} (run-tests test-dir arguments opts)]
           (System/exit (if (zero? failed) 0 1)))))))
