@@ -8,22 +8,61 @@
   (:import
    (java.nio.file AccessDeniedException InvalidPathException Path)))
 
+(def ^{:private true}
+  default-priority 5)
+
+(defn select-by-priority
+  "Select the option with the lowest priority.
+   Throws an exception if there is a tie."
+  [m by-id]
+  (update-vals m
+    (fn [ids]
+      (if (= 1 (count ids))
+        (first ids)
+        (let [priorities (mapv (fn [id] (get-in by-id [id "priority"])) ids)
+              lowest (apply min priorities)
+              lowest-ids (mapcat
+                           (fn [priority id]
+                             (when (= lowest priority)
+                               [id]))
+                           priorities
+                           ids)]
+          (if (= 1 (count lowest-ids))
+            (first lowest-ids)
+            (throw
+              (ex-info
+                (str "Found multiple options with same priority (" lowest "): "
+                  (str/join ", " lowest-ids))
+                {:ids lowest-ids
+                 :priority lowest}))))))))
+
 (defn compile-formatters [data]
-  {:by-extension
-   (into {}
-     (mapcat
-       (fn [[id {:strs [extensions]}]]
-         (for [ext extensions]
-           [ext id]))
-       data))
-   :by-filename
-   (into {}
-     (mapcat
-       (fn [[id {:strs [filenames]}]]
-         (for [fname filenames]
-           [fname id]))
-       data))
-   :by-id data})
+  (let [by-id (update-vals data
+                (fn [{:as m :strs [priority]}]
+                  (if priority
+                    m
+                    (assoc m "priority" 5))))
+        by-extension (reduce-kv
+                       (fn [m k {:strs [extensions]}]
+                         (reduce
+                           (fn [m ext]
+                             (update m ext (fnil conj []) k))
+                           m
+                           extensions))
+                       {}
+                       by-id)
+        by-filename (reduce-kv
+                      (fn [m k {:strs [filenames]}]
+                        (reduce
+                          (fn [m fname]
+                            (update m fname (fnil conj []) k))
+                          m
+                          filenames))
+                      {}
+                      by-id)]
+    {:by-extension (select-by-priority by-extension by-id)
+     :by-filename (select-by-priority by-filename by-id)
+     :by-id by-id}))
 
 (defn conform-config
   "Returns config-map conformed to schema. E.g., with default values set."
