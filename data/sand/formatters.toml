@@ -16,6 +16,14 @@ args = ["*@"]
 extensions = ["py"]
 package = "black"
 
+[cargo]
+args-config = ["fmt", "--manifest-path", "{{config}}", "--", "*@"]
+config-filenames = ["Cargo.toml"]
+extensions = ["rs"]
+package = "cargo"
+priority = 10
+runtime-packages = ["rustfmt"]
+
 [clang-format]
 args = ["-i", "*@"]
 bin-name = "clang-format"

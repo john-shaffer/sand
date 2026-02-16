@@ -1,0 +1,27 @@
+#:schema ./test.schema.json
+format = "one-turn"
+name = "Format Rust file with Cargo.toml"
+
+run = "sand format main.rs"
+
+[files."Cargo.toml"]
+content = """
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2021"
+"""
+
+[files."main.rs"]
+content = """
+async fn hello(   name: &str ) -> String {
+    format!("Hello, {}",name)
+}
+"""
+
+[expected.files."main.rs"]
+content = """
+async fn hello(name: &str) -> String {
+    format!("Hello, {}", name)
+}
+"""
