@@ -209,7 +209,6 @@
                      slurp
                      toml/read-string
                      core/compile-formatters)
-        _ (prn formatters)
         files (if (seq arguments)
                 (let [grouped (group-by #(fs/directory? %) arguments)]
                   (concat
