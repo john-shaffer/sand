@@ -84,7 +84,13 @@
       fs/canonicalize
       (fs/path ".sand"))))
 
-(defn formatter-args [formatter fname nixpkgs-input]
+(defn- shell-quote [s]
+  (let [s (str s)]
+    (if (re-matches #"[a-zA-Z0-9_./:@=+-]+" s)
+      s
+      (str \' (str/replace s "'" "'\"'\"'") \'))))
+
+(defn formatter-args [formatter fname shell-nix]
   (let [{:strs [args args-config bin-name config-filenames package]} formatter
         config-path (when (seq config-filenames)
                       (find-filename-up (fs/parent (fs/absolutize fname)) config-filenames))
@@ -96,19 +102,9 @@
                          "{{config}}" (some-> config-path str)
                          arg))
                      active-args)
-        {:strs [owner repo rev type]} (get nixpkgs-input "locked")
-        nixpkgs-ref (if (= "github" type)
-                      (str type ":" owner "/" repo "/" rev)
-                      "github:NixOS/nixpkgs")
-        package-ref (str nixpkgs-ref "#" package)]
-    (if bin-name
-      (into
-        ["nix" "shell" package-ref
-         "--command" bin-name]
-        shell-args)
-      (into
-        ["nix" "run" package-ref "--"]
-        shell-args))))
+        cmd (or bin-name package)]
+    ["nix-shell" (str shell-nix) "--run"
+     (str/join " " (map shell-quote (cons cmd shell-args)))]))
 
 (defn formatter-for-file [formatters fname]
   (if-let [id (get (:by-filename formatters) fname)]
@@ -168,4 +164,5 @@
             System/getenv
             (fs/path "shell.nix"))
           shell-nix-path))
-      (build-shell! dot-sand-dir))))
+      (build-shell! dot-sand-dir)
+      dot-sand-dir)))

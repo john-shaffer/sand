@@ -220,14 +220,15 @@
                   {:fname fname
                    :formatter formatter})
         packages (set (map #(get-in % [:formatter "package"]) actions))
-        nixpkgs-input (core/find-flake-nixpkgs ".")]
-    (core/write-dot-sand-files! "."
-      {:nixpkgs-input nixpkgs-input
-       :packages packages})
+        nixpkgs-input (core/find-flake-nixpkgs ".")
+        dot-sand-dir (core/write-dot-sand-files! "."
+                       {:nixpkgs-input nixpkgs-input
+                        :packages packages})
+        shell-nix (str (fs/path dot-sand-dir "shell.nix"))]
     (doseq [{:keys [fname formatter]} actions]
       (let [proc (apply p/start
                    {:err :inherit :out :inherit}
-                   (core/formatter-args formatter fname nixpkgs-input))
+                   (core/formatter-args formatter fname shell-nix))
             exit @(p/exit-ref proc)]
         (when-not (zero? exit)
           (System/exit exit))))))
