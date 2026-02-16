@@ -85,11 +85,17 @@
       (fs/path ".sand"))))
 
 (defn formatter-args [formatter fname nixpkgs-input]
-  (let [{:strs [args bin-name package]} formatter
-        shell-args (for [arg args]
-                     (if (#{"@" "*@"} arg)
-                       fname
-                       arg))
+  (let [{:strs [args args-config bin-name config-filenames package]} formatter
+        config-path (when (seq config-filenames)
+                      (find-filename-up (fs/parent (fs/absolutize fname)) config-filenames))
+        active-args (if (and config-path args-config) args-config args)
+        shell-args (keep
+                     (fn [arg]
+                       (case arg
+                         ("@" "*@") fname
+                         "{{config}}" (some-> config-path str)
+                         arg))
+                     active-args)
         {:strs [owner repo rev type]} (get nixpkgs-input "locked")
         nixpkgs-ref (if (= "github" type)
                       (str type ":" owner "/" repo "/" rev)
