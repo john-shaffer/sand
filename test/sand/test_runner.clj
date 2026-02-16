@@ -125,14 +125,6 @@
     (throw (ex-info (str "Unknown test format: " (get test-def "format"))
                     {:format (get test-def "format")}))))
 
-(defn report-check [check]
-  (if (= :pass (:type check))
-    (t/do-report {:type :pass})
-    (t/do-report {:type :fail
-                  :message (:message check)
-                  :expected (:expected check)
-                  :actual (:actual check)})))
-
 (defn format-multiline [s indent]
   (let [lines (str/split-lines s)]
     (str/join "\n" (map #(str indent %) lines))))
