@@ -41,7 +41,7 @@
                 (fn [{:as m :strs [priority]}]
                   (if priority
                     m
-                    (assoc m "priority" 5))))
+                    (assoc m "priority" default-priority))))
         by-extension (reduce-kv
                        (fn [m k {:strs [extensions]}]
                          (reduce
