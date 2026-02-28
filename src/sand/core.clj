@@ -182,26 +182,33 @@
       (throw (ex-info "nix-build failed" {:exit exit})))
     out-link))
 
-(defn write-dot-sand-files! [dir opts]
-  (when-let [dot-sand-dir (find-dot-sand-dir dir)]
-    (when-not (fs/exists? dot-sand-dir)
-      (fs/create-dir dot-sand-dir))
-    (let [data-path (fs/path dot-sand-dir "sand.json")
-          shell-nix-path (fs/path dot-sand-dir "shell.nix")
-          existing-data (try
-                          (with-open [rdr (-> data-path fs/file io/reader)]
-                            (json/read rdr))
-                          (catch Exception _ nil))
-          data (generate-sand-json existing-data opts)]
-      (when (not= existing-data data)
-        (with-open [w (-> data-path fs/file io/writer)]
-          (json/write data w :indent true)
-          (.write w "\n")))
-      (when-not (fs/exists? shell-nix-path)
-        (fs/copy
-          (-> "SAND_DATA_DIR"
-            System/getenv
-            (fs/path "shell.nix"))
-          shell-nix-path))
-      (build-shell! dot-sand-dir)
-      dot-sand-dir)))
+(defn- write-dot-sand-files! [dot-sand-dir opts]
+  (let [data-path (fs/path dot-sand-dir "sand.json")
+        shell-nix-path (fs/path dot-sand-dir "shell.nix")
+        existing-data (try
+                        (with-open [rdr (-> data-path fs/file io/reader)]
+                          (json/read rdr))
+                        (catch Exception _ nil))
+        data (generate-sand-json existing-data opts)]
+    (when (not= existing-data data)
+      (with-open [w (-> data-path fs/file io/writer)]
+        (json/write data w :indent true)
+        (.write w "\n")))
+    (when-not (fs/exists? shell-nix-path)
+      (fs/copy
+        (-> "SAND_DATA_DIR"
+          System/getenv
+          (fs/path "shell.nix"))
+        shell-nix-path))
+    (build-shell! dot-sand-dir)
+    dot-sand-dir))
+
+(defn write-dot-sand-dir! [dir opts]
+  (if-let [dot-sand-dir (find-dot-sand-dir dir)]
+    (do
+      (when-not (fs/exists? dot-sand-dir)
+        (fs/create-dir dot-sand-dir))
+      (write-dot-sand-files! dot-sand-dir opts))
+    (fs/with-temp-dir [dot-sand-dir {:prefix "sand"}]
+      (write-dot-sand-files! dot-sand-dir opts))))
+

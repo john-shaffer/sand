@@ -174,17 +174,17 @@
           ; _ (check-config-str config-str options)
           ; {:strs [shell]} (core/conform-config (toml/read-string config-str))
           shell {}
-          nixpkgs-input (core/find-flake-nixpkgs base-dir)]
-      (core/write-dot-sand-files! base-dir
-        {:nixpkgs-input nixpkgs-input
-         :packages []})
+          nixpkgs-input (core/find-flake-nixpkgs base-dir)
+          dot-sand-dir (core/write-dot-sand-dir! base-dir
+                         {:nixpkgs-input nixpkgs-input
+                          :packages []})]
       (p/exec
         {:dir base-dir
          :env (get shell "env")
          :err :inherit
          :in :inherit
          :out :inherit}
-        "nix-shell" ".sand"))))
+        "nix-shell" (str dot-sand-dir)))))
 
 (defn check [{:keys [options]}]
   (let [{:keys [debug file]} options
@@ -216,7 +216,7 @@
                          (seq (get formatter "runtime-packages"))))
                      actions))
         nixpkgs-input (core/find-flake-nixpkgs repo)
-        dot-sand-dir (core/write-dot-sand-files! repo
+        dot-sand-dir (core/write-dot-sand-dir! repo
                        {:nixpkgs-input nixpkgs-input
                         :packages packages})
         shell-nix (str (fs/path dot-sand-dir "shell.nix"))]
