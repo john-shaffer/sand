@@ -163,6 +163,7 @@
     nixpkgs-input (assoc "nixpkgs" nixpkgs-input)
     (seq packages) (assoc "shellPkgs"
                      (->> packages
+                       (remove empty?)
                        (into (set (get existing "shellPkgs")))
                        sort))))
 
