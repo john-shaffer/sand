@@ -36,13 +36,16 @@
                 {:ids lowest-ids
                  :priority lowest}))))))))
 
-(defn- compile-formatter [{:as m :strs [priority]}]
-  (if priority
-    m
-    (assoc m "priority" default-priority)))
+(defn- compile-formatter [k {:as m :strs [priority]}]
+  (cond-> (assoc m "id" k)
+    (not priority) (assoc "priority" default-priority)))
 
 (defn compile-formatters [data]
-  (let [by-id (update-vals data compile-formatter)
+  (let [by-id (reduce-kv
+                (fn [m k v]
+                  (assoc m k (compile-formatter k v)))
+                data
+                data)
         by-extension (reduce-kv
                        (fn [m k {:strs [extensions]}]
                          (reduce
