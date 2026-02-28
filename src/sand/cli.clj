@@ -224,7 +224,7 @@
     (doseq [{:keys [dir fname formatter]} actions]
       (let [proc (apply p/start
                    {:dir (str dir) :err :inherit :out :inherit}
-                   (core/formatter-args formatter fname shell-nix))
+                   (first (core/formatter-args formatter shell-nix [fname])))
             exit-code @(p/exit-ref proc)]
         (when-not (zero? exit-code)
           (exit exit-code))))))

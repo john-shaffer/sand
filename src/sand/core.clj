@@ -4,7 +4,8 @@
    [clojure.data.json :as json]
    [clojure.java.io :as io]
    [clojure.java.process :as p]
-   [clojure.string :as str])
+   [clojure.string :as str]
+   [sand.util :as u])
   (:import
    (java.nio.file AccessDeniedException InvalidPathException Path)))
 
@@ -133,21 +134,54 @@
       s
       (str \' (str/replace s "'" "'\"'\"'") \'))))
 
-(defn formatter-args [formatter fname shell-nix]
+(defn formatter-args [formatter shell-nix fnames]
   (let [{:strs [args args-config bin-name config-filenames package]} formatter
-        config-path (when (seq config-filenames)
-                      (find-filename-up (fs/parent (fs/absolutize fname)) config-filenames))
-        active-args (if (and config-path args-config) args-config args)
-        shell-args (keep
-                     (fn [arg]
-                       (case arg
-                         ("@" "*@") fname
-                         "{{config}}" (some-> config-path str)
-                         arg))
-                     active-args)
+        grouped-by-config (u/group-paths-by-ancestor
+                            (fn [path]
+                              (loop [[cfg & more] config-filenames]
+                                (cond
+                                  (nil? cfg) false
+                                  (fs/exists? (fs/path path cfg)) true
+                                  :else (recur more))))
+                            fnames)
+        base-command ["nix-shell" (str shell-nix) "--run"]
         cmd (or bin-name package)]
-    ["nix-shell" (str shell-nix) "--run"
-     (str/join " " (map shell-quote (cons cmd shell-args)))]))
+    (mapcat
+      (fn [[config-dir fnames]]
+        (let [config-path (when config-dir
+                            (find-filename-up config-dir config-filenames))
+              active-args (or (when config-path args-config) args)
+              arg-arity (some #{"@" "*@"} active-args)
+              shell-args (keep
+                           (fn [arg]
+                             (if (= "{{config}}" arg)
+                               (some-> config-path str)
+                               arg))
+                           active-args)
+              shell-arg-seqs
+              #__ (case arg-arity
+                    "@"
+                    (for [fname fnames]
+                      (mapcat
+                        (fn [arg]
+                          (if (= "@" arg)
+                            [fname]
+                            [arg]))
+                        shell-args))
+
+                    "*@"
+                    [(mapcat
+                       (fn [arg]
+                         (if (= "*@" arg)
+                           fnames
+                           [arg]))
+                       shell-args)]
+
+                    (throw (ex-info "Invalid formatter" {:formatter formatter})))]
+          (for [sas shell-arg-seqs]
+            (conj base-command
+              (str/join " " (map shell-quote (cons cmd sas)))))))
+      grouped-by-config)))
 
 (defn formatter-for-file [formatters fname]
   (if-let [id (get (:by-filename formatters) fname)]
