@@ -203,26 +203,27 @@
       (exit exit-code))))
 
 (defn format-paths [formatters repo paths]
-  (let [actions (for [path paths
+  (let [dir (or repo (fs/path "."))
+        actions (for [path paths
                       :let [formatter (core/formatter-for-file formatters (fs/file-name path))]
                       :when formatter]
-                  {:fname (str path)
-                   :formatter formatter
-                   :repo repo})
+                  {:dir dir
+                   :fname (str path)
+                   :formatter formatter})
         packages (set
                    (mapcat
                      (fn [{:keys [formatter]}]
                        (cons (get formatter "package")
                          (seq (get formatter "runtime-packages"))))
                      actions))
-        nixpkgs-input (core/find-flake-nixpkgs repo)
-        dot-sand-dir (core/write-dot-sand-dir! repo
+        nixpkgs-input (core/find-flake-nixpkgs dir)
+        dot-sand-dir (core/write-dot-sand-dir! dir
                        {:nixpkgs-input nixpkgs-input
                         :packages packages})
         shell-nix (str (fs/path dot-sand-dir "shell.nix"))]
-    (doseq [{:keys [fname formatter repo]} actions]
+    (doseq [{:keys [dir fname formatter]} actions]
       (let [proc (apply p/start
-                   {:dir (str repo) :err :inherit :out :inherit}
+                   {:dir (str dir) :err :inherit :out :inherit}
                    (core/formatter-args formatter fname shell-nix))
             exit-code @(p/exit-ref proc)]
         (when-not (zero? exit-code)
