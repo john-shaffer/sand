@@ -207,8 +207,8 @@
         actions (for [path paths
                       :let [formatter (core/formatter-for-file formatters (fs/file-name path))]
                       :when formatter]
-                  {:dir dir
-                   :fname (str path)
+                  {:fname (str path)
+                   :formatter-id (get formatter "id")
                    :formatter formatter})
         packages (set
                    (mapcat
@@ -221,10 +221,12 @@
                        {:nixpkgs-input nixpkgs-input
                         :packages packages})
         shell-nix (str (fs/path dot-sand-dir "shell.nix"))]
-    (doseq [{:keys [dir fname formatter]} actions]
+    (doseq [[_ actions] (group-by :formatter-id actions)
+            :let [{:keys [formatter]} (first actions)]
+            cmd (core/formatter-args formatter shell-nix (map :fname actions))]
       (let [proc (apply p/start
                    {:dir (str dir) :err :inherit :out :inherit}
-                   (first (core/formatter-args formatter shell-nix [fname])))
+                   cmd)
             exit-code @(p/exit-ref proc)]
         (when-not (zero? exit-code)
           (exit exit-code))))))
