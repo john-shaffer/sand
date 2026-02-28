@@ -2,7 +2,7 @@
 format = "one-turn"
 name = "Format Rust file with Cargo.toml"
 
-run = "sand format main.rs"
+run = "sand format src/main.rs"
 
 [files."Cargo.toml"]
 content = """
@@ -12,14 +12,14 @@ version = "0.1.0"
 edition = "2021"
 """
 
-[files."main.rs"]
+[files."src/main.rs"]
 content = """
 async fn hello(   name: &str ) -> String {
     format!("Hello, {}",name)
 }
 """
 
-[expected.files."main.rs"]
+[expected.files."src/main.rs"]
 content = """
 async fn hello(name: &str) -> String {
     format!("Hello, {}", name)
