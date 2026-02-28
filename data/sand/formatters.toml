@@ -21,7 +21,7 @@ args-config = ["fmt", "--manifest-path", "{{config}}", "--", "*@"]
 config-filenames = ["Cargo.toml"]
 extensions = ["rs"]
 package = "cargo"
-priority = 10
+priority = 3
 runtime-packages = ["rustfmt"]
 
 [clang-format]
