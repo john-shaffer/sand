@@ -36,12 +36,13 @@
                 {:ids lowest-ids
                  :priority lowest}))))))))
 
+(defn- compile-formatter [{:as m :strs [priority]}]
+  (if priority
+    m
+    (assoc m "priority" default-priority)))
+
 (defn compile-formatters [data]
-  (let [by-id (update-vals data
-                (fn [{:as m :strs [priority]}]
-                  (if priority
-                    m
-                    (assoc m "priority" default-priority))))
+  (let [by-id (update-vals data compile-formatter)
         by-extension (reduce-kv
                        (fn [m k {:strs [extensions]}]
                          (reduce
@@ -211,4 +212,3 @@
       (write-dot-sand-files! dot-sand-dir opts))
     (fs/with-temp-dir [dot-sand-dir {:prefix "sand"}]
       (write-dot-sand-files! dot-sand-dir opts))))
-
