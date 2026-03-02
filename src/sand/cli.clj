@@ -1,13 +1,14 @@
 (ns sand.cli
   (:require
    [babashka.fs :as fs]
-   [clojure.data.json :as json]
    [clojure.java.io :as io]
    [clojure.java.process :as p]
    [clojure.string :as str]
    [clojure.tools.cli :refer [parse-opts]]
    [sand.core :as core]
    [sand.git :as git]
+   [sand.log :as log]
+   [sand.util :as u]
    [toml-clj.core :as toml])
   (:gen-class))
 
@@ -202,7 +203,7 @@
     (when-not (zero? exit-code)
       (exit exit-code))))
 
-(defn format-paths [formatters repo paths]
+(defn format-paths [{:keys [debug]} formatters repo paths]
   (let [dir (or repo (fs/path "."))
         actions (for [path paths
                       :let [formatter (core/formatter-for-file formatters (fs/file-name path))]
@@ -224,6 +225,8 @@
     (doseq [[_ actions] (group-by :formatter-id actions)
             :let [{:keys [formatter]} (first actions)]
             cmd (core/formatter-args formatter shell-nix (map :fname actions))]
+      (when debug
+        (log/debug (str "Running command: " (str/join " " (map u/shell-quote cmd)))))
       (let [proc (apply p/start
                    {:dir (str dir) :err :inherit :out :inherit}
                    cmd)
@@ -231,8 +234,9 @@
         (when-not (zero? exit-code)
           (exit exit-code))))))
 
-(defn fmt [{:keys [arguments]}]
-  (let [formatters (-> "SAND_DATA_DIR"
+(defn fmt [{:keys [arguments options]}]
+  (let [{:keys [debug]} options
+        formatters (-> "SAND_DATA_DIR"
                      System/getenv
                      (str "/formatters.toml")
                      slurp
@@ -255,7 +259,11 @@
                                       (map str (get grouped true)))))))))
                         {}))]
     (doseq [[repo paths] repo->paths]
-      (format-paths formatters repo paths))))
+      (when debug
+        (if repo
+          (log/debug (str "Running formatters in git repo " (pr-str (str repo))))
+          (log/debug "Running formatters with no git repo")))
+      (format-paths options formatters repo paths))))
 
 (defn -main [& args]
   (let [parsed-opts (validate-args args)
