@@ -10,3 +10,4 @@ bench*.json
 gcroots
 plot*.png
 result
+setup
