@@ -1,7 +1,8 @@
 (ns sand.util
   (:require
    [babashka.fs :as fs]
-   [clojure.set :as set]))
+   [clojure.set :as set]
+   [clojure.string :as str]))
 
 (defn group-paths-by-ancestor
   "Returns a map whose keys are ancestor paths matching a predicate
@@ -44,3 +45,9 @@
               (recur
                 repo->paths
                 (cons [(fs/parent k) v] more)))))))))
+
+(defn shell-quote [s]
+  (let [s (str s)]
+    (if (re-matches #"[a-zA-Z0-9_./:@=+-]+" s)
+      s
+      (str \' (str/replace s "'" "'\"'\"'") \'))))

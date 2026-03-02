@@ -128,12 +128,6 @@
       fs/canonicalize
       (fs/path ".sand"))))
 
-(defn- shell-quote [s]
-  (let [s (str s)]
-    (if (re-matches #"[a-zA-Z0-9_./:@=+-]+" s)
-      s
-      (str \' (str/replace s "'" "'\"'\"'") \'))))
-
 (defn formatter-args [formatter shell-nix fnames]
   (let [{:strs [args args-config bin-name config-filenames package]} formatter
         grouped-by-config (u/group-paths-by-ancestor
@@ -180,7 +174,7 @@
                     (throw (ex-info "Invalid formatter" {:formatter formatter})))]
           (for [sas shell-arg-seqs]
             (conj base-command
-              (str/join " " (map shell-quote (cons cmd sas)))))))
+              (str/join " " (map u/shell-quote (cons cmd sas)))))))
       grouped-by-config)))
 
 (defn formatter-for-file [formatters fname]
