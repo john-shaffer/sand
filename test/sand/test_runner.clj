@@ -3,7 +3,6 @@
    [babashka.fs :as fs]
    [clojure.java.process :as p]
    [clojure.string :as str]
-   [clojure.test :as t]
    [clojure.tools.cli :as cli]
    [toml-clj.core :as toml]))
 
