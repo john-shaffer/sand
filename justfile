@@ -29,11 +29,11 @@ run *args:
 
 # Run tests against the built binary
 test *args: build
-    SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner --sand-bin result/bin/sand {{ args }}
+    SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner --sand-bin result/bin/sand {{ args }} --show-stderr
 
 # Run tests inline (no build required)
 test-inline *args:
-    SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner --inline {{ args }}
+    SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner --inline {{ args }} --show-stderr
 
 # Update dependencies
 update: && update-deps-lock format
