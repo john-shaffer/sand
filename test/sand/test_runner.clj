@@ -190,11 +190,18 @@
   (let [test-def (load-test path)
         test-name (get test-def "name")]
     (println "Testing:" test-name)
-    (let [{:keys [command result checks pass?] :as test-result} (run-test test-def opts)]
+    (let [{:keys [command result checks pass?] :as test-result} (run-test test-def opts)
+          {:keys [stderr stdout]} result]
       (when-not pass?
         (println "  command:" command)
-        (when (seq (:stderr result))
-          (println "  stderr:" (:stderr result))))
+        (when (:show-stdout opts)
+          (println "  stdout:"
+            (when (seq stdout) "\n")
+            (or stdout "")))
+        (when (:show-stderr opts)
+          (println "  stderr:"
+            (when (seq stderr) "\n")
+            (or stderr ""))))
       (doseq [check checks]
         (if (= :pass (:type check))
           (println "  ✓" (or (:path check) (:check check) "pass"))
@@ -235,6 +242,8 @@
   [[nil "--inline" "Invoke Clojure functions instead of a sand binary"]
    [nil "--sand-bin PATH" "Path to sand binary"]
    [nil "--setup DIR" "Copy test input files into DIR instead of running"]
+   [nil "--show-stderr" "Print stderr of test commands"]
+   [nil "--show-stdout" "Print stdout of test commands"]
    [nil "--test-dir DIR" "Test directory" :default "test"]])
 
 (defn -main [& args]
@@ -242,11 +251,14 @@
     (when errors
       (doseq [e errors] (println e))
       (System/exit 1))
-    (let [{:keys [inline sand-bin setup test-dir]} options]
+    (let [{:keys [inline sand-bin setup show-stderr show-stdout test-dir]} options]
       (if setup
         (setup-test-to-dir test-dir arguments setup)
         (let [opts (if inline
                      {:inline true}
                      {:sand-bin (some-> sand-bin fs/absolutize str)})
+              opts (assoc opts
+                     :show-stderr (boolean show-stderr)
+                     :show-stdout (boolean show-stdout))
               {:keys [failed]} (run-tests test-dir arguments opts)]
           (System/exit (if (zero? failed) 0 1)))))))
