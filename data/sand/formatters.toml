@@ -57,7 +57,7 @@ extensions = ["nix"]
 package = "nixfmt"
 
 [prettier]
-args = ["--write", "*@"]
+args = ["--write", "--ignore-path", "/dev/null", "*@"]
 extensions = ["js", "jsx", "ts", "tsx"]
 package = "prettier"
 
