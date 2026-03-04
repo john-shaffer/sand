@@ -189,6 +189,7 @@
 (defn run-test-file [path opts]
   (let [test-def (load-test path)
         test-name (get test-def "name")]
+    (println (str "[" path "]"))
     (println "Testing:" test-name)
     (let [{:keys [command result checks pass?] :as test-result} (run-test test-def opts)
           {:keys [stderr stdout]} result]
