@@ -1,5 +1,3 @@
-repo_root := `pwd`
-
 alias b := build
 alias fmt := format
 alias t := test
@@ -29,20 +27,23 @@ _jar-app-path:
 
 # Run sand
 run *args:
-    clojure -M -m sand.cli {{ args }}
+    #!/usr/bin/env bash
+    SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" clojure -M -m sand.cli {{ args }}
 
 # Run tests against the built binary
-test *args: build
-    SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner --sand-bin result/bin/sand {{ args }} --show-stderr
+test *args:
+    #!/usr/bin/env bash
+    PATH="$(nix build . --print-out-paths)/bin:$PATH" clojure -M:test -m sand.test-runner {{ args }} --show-stderr
 
 # Run tests inline (no build required)
 test-inline *args:
-    SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner --inline {{ args }} --show-stderr
+    #!/usr/bin/env bash
+    SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" clojure -M:test -m sand.test-runner --inline {{ args }} --show-stderr
 
 # Run tests against the jar app, for development
 test-jar *args:
     #!/usr/bin/env bash
-    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner {{ args }} --show-stderr
+    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" clojure -M:test -m sand.test-runner {{ args }} --show-stderr
 
 # Update dependencies
 update: && update-deps-lock format

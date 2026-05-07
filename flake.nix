@@ -108,7 +108,6 @@
             echo -e "Run '\033[1mjust <recipe>\033[0m' to get started"
             just --list
           '';
-          SAND_DATA_DIR = "data/sand";
         };
         packages = {
           default = sandWrapped;
