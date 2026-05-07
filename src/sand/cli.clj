@@ -166,19 +166,16 @@
       (exit @(p/exit-ref p)))))
 
 (defn shell [{:keys [options]}]
-  (fs/with-temp-dir [_tmpdir {:prefix "sand"}]
-    (let [; {:keys [file]} options
-          ; TODO Use sand.toml if exists
-          ; base-dir (fs/parent file)
-          base-dir "."
-          ; config-str (slurp file)
-          ; _ (check-config-str config-str options)
-          ; {:strs [shell]} (core/conform-config (toml/read-string config-str))
-          shell {}
-          nixpkgs-input (core/find-flake-nixpkgs base-dir)
-          dot-sand-dir (core/write-dot-sand-dir! base-dir
-                         {:nixpkgs-input nixpkgs-input
-                          :packages []})]
+  (let [; {:keys [file]} options
+        ; TODO Use sand.toml if exists
+        ; base-dir (fs/parent file)
+        base-dir "."
+        ; config-str (slurp file)
+        ; _ (check-config-str config-str options)
+        ; {:strs [shell]} (core/conform-config (toml/read-string config-str))
+        shell {}
+        nixpkgs-input (core/find-flake-nixpkgs base-dir)]
+    (core/with-dot-sand-dir [dot-sand-dir base-dir {:nixpkgs-input nixpkgs-input :packages []}]
       (p/exec
         {:dir base-dir
          :env (get shell "env")
@@ -218,22 +215,20 @@
                        (cons (get formatter "package")
                          (seq (get formatter "runtime-packages"))))
                      actions))
-        nixpkgs-input (core/find-flake-nixpkgs dir)
-        dot-sand-dir (core/write-dot-sand-dir! dir
-                       {:nixpkgs-input nixpkgs-input
-                        :packages packages})
-        shell-nix (str (fs/path dot-sand-dir "shell.nix"))]
-    (doseq [[_ actions] (group-by :formatter-id actions)
-            :let [{:keys [formatter]} (first actions)]
-            cmd (core/formatter-args formatter shell-nix (map :fname actions))]
-      (when debug
-        (log/debug (str "Running command: " (str/join " " (map u/shell-quote cmd)))))
-      (let [proc (apply p/start
-                   {:dir (str dir) :err :inherit :out :inherit}
-                   cmd)
-            exit-code @(p/exit-ref proc)]
-        (when-not (zero? exit-code)
-          (exit exit-code))))))
+        nixpkgs-input (core/find-flake-nixpkgs dir)]
+    (core/with-dot-sand-dir [dot-sand-dir dir {:nixpkgs-input nixpkgs-input :packages packages}]
+      (let [shell-nix (str (fs/path dot-sand-dir "shell.nix"))]
+        (doseq [[_ actions] (group-by :formatter-id actions)
+                :let [{:keys [formatter]} (first actions)]
+                cmd (core/formatter-args formatter shell-nix (map :fname actions))]
+          (when debug
+            (log/debug (str "Running command: " (str/join " " (map u/shell-quote cmd)))))
+          (let [proc (apply p/start
+                       {:dir (str dir) :err :inherit :out :inherit}
+                       cmd)
+                exit-code @(p/exit-ref proc)]
+            (when-not (zero? exit-code)
+              (exit exit-code))))))))
 
 (defn fmt [{:keys [arguments options]}]
   (let [{:keys [debug]} options

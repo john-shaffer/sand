@@ -215,7 +215,12 @@
       (throw (ex-info "nix-build failed" {:exit exit})))
     out-link))
 
-(defn- write-dot-sand-files! [dot-sand-dir opts]
+(defn write-dot-sand-dir!
+  "Writes sand.json and shell.nix into dot-sand-dir, creating the directory
+   if needed, then builds the shell. Returns dot-sand-dir."
+  [dot-sand-dir opts]
+  (when-not (fs/exists? dot-sand-dir)
+    (fs/create-dir dot-sand-dir))
   (let [data-path (fs/path dot-sand-dir "sand.json")
         shell-nix-path (fs/path dot-sand-dir "shell.nix")
         existing-data (try
@@ -236,11 +241,11 @@
     (build-shell! dot-sand-dir)
     dot-sand-dir))
 
-(defn write-dot-sand-dir! [dir opts]
-  (if-let [dot-sand-dir (find-dot-sand-dir dir)]
-    (do
-      (when-not (fs/exists? dot-sand-dir)
-        (fs/create-dir dot-sand-dir))
-      (write-dot-sand-files! dot-sand-dir opts))
-    (fs/with-temp-dir [dot-sand-dir {:prefix "sand"}]
-      (write-dot-sand-files! dot-sand-dir opts))))
+(defmacro with-dot-sand-dir [[binding dir opts] & body]
+  `(let [opts# ~opts]
+     (if-let [found# (find-dot-sand-dir ~dir)]
+       (let [~binding (write-dot-sand-dir! found# opts#)]
+         ~@body)
+       (fs/with-temp-dir [tmp# {:prefix "sand"}]
+         (let [~binding (write-dot-sand-dir! tmp# opts#)]
+           ~@body)))))
