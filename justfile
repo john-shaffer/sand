@@ -18,7 +18,7 @@ bench *args: build
 build:
     nix build
 
-# Format source and then check for unfixable issues
+# Format source
 format:
     just run format
     standard-clj fix
