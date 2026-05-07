@@ -245,7 +245,7 @@
    [nil "--setup DIR" "Copy test input files into DIR instead of running"]
    [nil "--show-stderr" "Print stderr of test commands"]
    [nil "--show-stdout" "Print stdout of test commands"]
-   [nil "--test-dir DIR" "Test directory" :default "test"]])
+   [nil "--test-dir DIR" "Test directory" :default "test/scenarios"]])
 
 (defn -main [& args]
   (let [{:keys [options arguments errors]} (cli/parse-opts args cli-options)]
