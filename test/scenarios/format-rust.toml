@@ -1,17 +1,19 @@
-#:schema ./test.schema.json
-format = "one-turn"
 name = "Format Rust file"
 
-run = "sand format main.rs"
-
-[files."main.rs"]
+[setup.files."main.rs"]
 content = """
 fn main( ) {
         println!("hello");
 }
 """
 
-[expected.files."main.rs"]
+[[steps]]
+run = "sand format main.rs"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."main.rs"]
 content = """
 fn main() {
     println!("hello");

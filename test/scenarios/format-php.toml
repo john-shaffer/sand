@@ -1,10 +1,6 @@
-#:schema ./test.schema.json
-format = "one-turn"
 name = "Format PHP file"
 
-run = "sand format example.php"
-
-[files."example.php"]
+[setup.files."example.php"]
 content = """
 <?php
 function hello(   $name ) {
@@ -12,7 +8,13 @@ function hello(   $name ) {
 }
 """
 
-[expected.files."example.php"]
+[[steps]]
+run = "sand format example.php"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."example.php"]
 content = """
 <?php
 function hello($name)

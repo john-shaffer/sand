@@ -1,16 +1,18 @@
-#:schema ./test.schema.json
-format = "one-turn"
 name = "Unknown file extension is ignored"
 
-run = "sand format data.xyz"
-
-[files."data.xyz"]
+[setup.files."data.xyz"]
 content = """
 some random content
 that should not change
 """
 
-[expected.files."data.xyz"]
+[[steps]]
+run = "sand format data.xyz"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."data.xyz"]
 content = """
 some random content
 that should not change

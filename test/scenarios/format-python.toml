@@ -1,16 +1,18 @@
-#:schema ./test.schema.json
-format = "one-turn"
 name = "Format Python file"
 
-run = "sand format example.py"
-
-[files."example.py"]
+[setup.files."example.py"]
 content = """
 def hello(   name ):
     return "Hello, "+name
 """
 
-[expected.files."example.py"]
+[[steps]]
+run = "sand format example.py"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."example.py"]
 content = """
 def hello(name):
     return "Hello, " + name

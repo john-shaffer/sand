@@ -33,17 +33,12 @@ run *args:
 # Run tests against the built binary
 test *args:
     #!/usr/bin/env bash
-    PATH="$(nix build . --print-out-paths)/bin:$PATH" clojure -M:test -m sand.test-runner {{ args }} --show-stderr
-
-# Run tests inline (no build required)
-test-inline *args:
-    #!/usr/bin/env bash
-    SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" clojure -M:test -m sand.test-runner --inline {{ args }} --show-stderr
+    PATH="$(nix build . --print-out-paths)/bin:$PATH" tact test {{ args }}
 
 # Run tests against the jar app, for development
 test-jar *args:
     #!/usr/bin/env bash
-    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" clojure -M:test -m sand.test-runner {{ args }} --show-stderr
+    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" tact test {{ args }}
 
 # Update dependencies
 update: && update-deps-lock format

@@ -1,10 +1,6 @@
-#:schema ./test.schema.json
-format = "one-turn"
 name = "Format multiple files"
 
-run = "sand format main.go config.toml"
-
-[files."main.go"]
+[setup.files."main.go"]
 content = """
 package main
 
@@ -13,14 +9,20 @@ fmt.Println(  "hello" )
 }
 """
 
-[files."config.toml"]
+[setup.files."config.toml"]
 content = """
 [server]
 port=8080
 host="localhost"
 """
 
-[expected.files."main.go"]
+[[steps]]
+run = "sand format main.go config.toml"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."main.go"]
 content = """
 package main
 
@@ -29,7 +31,7 @@ func main() {
 }
 """
 
-[expected.files."config.toml"]
+[steps.expected.files."config.toml"]
 content = """
 [server]
 port = 8080

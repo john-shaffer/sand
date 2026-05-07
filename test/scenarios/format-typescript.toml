@@ -1,17 +1,19 @@
-#:schema ./test.schema.json
-format = "one-turn"
 name = "Format TypeScript file"
 
-run = "sand format example.ts"
-
-[files."example.ts"]
+[setup.files."example.ts"]
 content = """
 function hello(name:string):string{
 return "Hello, "+name
 }
 """
 
-[expected.files."example.ts"]
+[[steps]]
+run = "sand format example.ts"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."example.ts"]
 content = """
 function hello(name: string): string {
   return "Hello, " + name;
