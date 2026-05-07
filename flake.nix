@@ -13,6 +13,12 @@
       url = "github:john-shaffer/finefile";
     };
     flake-utils.url = "github:numtide/flake-utils";
+    tact = {
+      inputs.clj-nix.follows = "clj-nix";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:john-shaffer/tact";
+    };
   };
   outputs =
     inputs:
@@ -101,6 +107,7 @@
               deps-lock
               finefile.packages.${system}.default
               just
+              inputs.tact.packages.${system}.default
             ]
             ++ runtimePaths;
           shellHook = ''

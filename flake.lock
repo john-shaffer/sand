@@ -179,7 +179,8 @@
         "clj-nix": "clj-nix",
         "finefile": "finefile",
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "tact": "tact"
       }
     },
     "systems": {
@@ -194,6 +195,32 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "tact": {
+      "inputs": {
+        "clj-nix": [
+          "clj-nix"
+        ],
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1778169061,
+        "narHash": "sha256-nBChMELL/VxMQgdr0vIb+f3mXoZoAm3IyN+2AXDwIXo=",
+        "owner": "john-shaffer",
+        "repo": "tact",
+        "rev": "a57e77437fc6810b9b9dacbf4d0506ced2b6b52b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "john-shaffer",
+        "repo": "tact",
         "type": "github"
       }
     }
