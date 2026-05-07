@@ -24,6 +24,7 @@
         overlays = [ clj-nix.overlays.default ];
       };
       let
+        version = "0.1.0";
         jdkPackage = pkgs.jdk25_headless;
         lockfile = lib.sources.sourceByRegex self [ "^deps-lock.json$" ];
         sandSrc = lib.sources.sourceFilesBySuffices self [
@@ -45,7 +46,20 @@
               name = "sand";
               nativeImage.enable = true;
               projectSrc = sandSrc;
-              version = "0.1.0";
+              version = version;
+            }
+          ];
+        };
+        sandJarApp = clj-nix.lib.mkCljApp {
+          pkgs = nixpkgs.legacyPackages.${system};
+          modules = [
+            {
+              jdk = jdkPackage;
+              lockfile = lockfile + /deps-lock.json;
+              main-ns = "sand.cli";
+              name = "sand";
+              projectSrc = sandSrc;
+              version = version;
             }
           ];
         };
@@ -99,6 +113,7 @@
         packages = {
           default = sandWrapped;
           sand = sandWrapped;
+          sand-jar-app = sandJarApp;
           sand-unwrapped = sandUnwrapped;
         };
       }

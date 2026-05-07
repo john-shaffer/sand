@@ -23,6 +23,10 @@ format:
     just run format
     standard-clj fix
 
+# Jar runner that is quick to build for development
+_jar-app-path:
+    @nix build .#sand-jar-app --print-out-paths
+
 # Run sand
 run *args:
     clojure -M -m sand.cli {{ args }}
@@ -34,6 +38,11 @@ test *args: build
 # Run tests inline (no build required)
 test-inline *args:
     SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner --inline {{ args }} --show-stderr
+
+# Run tests against the jar app, for development
+test-jar *args:
+    #!/usr/bin/env bash
+    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR={{ repo_root }}/data/sand SAND_SCHEMA={{ repo_root }}/schema/sand.toml.latest.schema.json clojure -M:test -m sand.test-runner {{ args }} --show-stderr
 
 # Update dependencies
 update: && update-deps-lock format
