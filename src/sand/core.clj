@@ -12,30 +12,23 @@
 (def ^{:private true}
   default-priority 5)
 
-(defn select-by-priority
-  "Select the option with the lowest priority.
-   Throws an exception if there is a tie."
+(defn- sort-by-priority
+  "Returns m with each value replaced by a priority-sorted vector of ids.
+   Throws if any two ids share the same priority."
   [m by-id]
   (update-vals m
     (fn [ids]
-      (if (= 1 (count ids))
-        (first ids)
-        (let [priorities (mapv (fn [id] (get-in by-id [id "priority"])) ids)
-              lowest (apply min priorities)
-              lowest-ids (mapcat
-                           (fn [priority id]
-                             (when (= lowest priority)
-                               [id]))
-                           priorities
-                           ids)]
-          (if (= 1 (count lowest-ids))
-            (first lowest-ids)
-            (throw
-              (ex-info
-                (str "Found multiple options with same priority (" lowest "): "
-                  (str/join ", " lowest-ids))
-                {:ids lowest-ids
-                 :priority lowest}))))))))
+      (let [sorted (vec (sort-by #(get-in by-id [% "priority"]) ids))]
+        (doseq [[a b] (partition 2 1 sorted)]
+          (let [pa (get-in by-id [a "priority"])
+                pb (get-in by-id [b "priority"])]
+            (when (= pa pb)
+              (throw
+                (ex-info
+                  (str "Found multiple options with same priority (" pa "): "
+                    (str/join ", " [a b]))
+                  {:ids [a b] :priority pa})))))
+        sorted))))
 
 (defn- compile-formatter [k {:as m :strs [priority]}]
   (cond-> (assoc m "id" k)
@@ -65,8 +58,8 @@
                           filenames))
                       {}
                       by-id)]
-    {:by-extension (select-by-priority by-extension by-id)
-     :by-filename (select-by-priority by-filename by-id)
+    {:by-extension (sort-by-priority by-extension by-id)
+     :by-filename (sort-by-priority by-filename by-id)
      :by-id by-id}))
 
 (defn conform-config
@@ -177,12 +170,19 @@
               (str/join " " (map u/shell-quote (cons cmd sas)))))))
       grouped-by-config)))
 
-(defn formatter-for-file [formatters fname]
-  (if-let [id (get (:by-filename formatters) fname)]
-    (get (:by-id formatters) id)
-    (let [ext (fs/extension fname)]
-      (some->> (get (:by-extension formatters) ext)
-        (get (:by-id formatters))))))
+(defn formatter-for-file [formatters dir fname]
+  (let [candidates (or (get (:by-filename formatters) fname)
+                     (get (:by-extension formatters) (fs/extension fname)))]
+    (some
+      (fn [id]
+        (let [{:strs [args args-config config-filenames] :as formatter}
+              (get (:by-id formatters) id)]
+          (when (or args
+                  (and args-config
+                    (seq config-filenames)
+                    (find-filename-up dir config-filenames)))
+            formatter)))
+      candidates)))
 
 (defn generate-sand-json
   "Generates a sand.json file. `existing` may be nil or pre-existing data."

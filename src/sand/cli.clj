@@ -206,7 +206,8 @@
 (defn format-paths [{:keys [debug]} formatters repo paths]
   (let [dir (or repo (fs/path "."))
         actions (for [path paths
-                      :let [formatter (core/formatter-for-file formatters (fs/file-name path))]
+                      :let [file-dir (-> path fs/canonicalize fs/parent)
+                            formatter (core/formatter-for-file formatters file-dir (fs/file-name path))]
                       :when formatter]
                   {:fname (str path)
                    :formatter-id (get formatter "id")
