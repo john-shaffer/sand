@@ -31,7 +31,7 @@
       };
       let
         version = "0.1.0";
-        jdkPackage = pkgs.jdk25_headless;
+        jdkPackage = pkgs.graalvmPackages.graalvm-ce;
         lockfile = lib.sources.sourceByRegex self [ "^deps-lock.json$" ];
         sandSrc = lib.sources.sourceFilesBySuffices self [
           ".clj"
