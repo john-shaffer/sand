@@ -55,11 +55,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777952802,
-        "narHash": "sha256-G5ww8kpIBszZrfnS5AB1k7MbJy5R/o+u3dGOr2hn/NA=",
+        "lastModified": 1786498201,
+        "narHash": "sha256-SxLH9gaO5ia8fztMkNYnHOxFc5xp7zqoea5fgOvlrpo=",
         "owner": "john-shaffer",
         "repo": "finefile",
-        "rev": "9549bc54ef5569bfdcd09eb4f433344419cc00af",
+        "rev": "4fa7f360955a38ec40395263f7daddc4a7286d36",
         "type": "github"
       },
       "original": {
@@ -170,11 +170,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1783389287,
-        "narHash": "sha256-0xIy4dVLqq47rA+mRy0hXDfjhQd4E5PoIns/RmB7nR4=",
+        "lastModified": 1790218706,
+        "narHash": "sha256-6e4Na3z008XpdVyOXgfasXIn1aN+z8AXFG+jXdQSyuI=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "0ad6f47ea4fe188f4bc8f0380f93ae8523337c6c",
+        "rev": "c508844df6c28fa6dabc1b6af70f3ccbd65c5201",
         "type": "github"
       },
       "original": {
