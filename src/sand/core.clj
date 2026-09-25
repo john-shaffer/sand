@@ -101,11 +101,13 @@
         last second))))
 
 (defn find-flake-nixpkgs
-  "Finds a nixpkgs input for the flake for the given dir.
+  "Finds a nixpkgs input for the flake for the given dir. The search
+   stops at the root of the git repo containing dir, if any.
    Returns nil if a flake or suitable nixpkgs is not found."
   [dir]
-  (let [flake-lock (when-let [path (find-filename-up dir ["flake.lock"])]
-                     (with-open [rdr (-> path fs/file io/reader)]
+  (let [found (find-filename-up dir ["flake.lock" ".git"])
+        flake-lock (when (and found (= "flake.lock" (str (fs/file-name found))))
+                     (with-open [rdr (-> found fs/file io/reader)]
                        (json/read rdr)))]
     (when flake-lock
       (find-nixpkgs-input flake-lock))))

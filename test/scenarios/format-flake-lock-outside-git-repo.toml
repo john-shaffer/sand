@@ -1,0 +1,37 @@
+name = "A flake.lock above the git root is ignored"
+
+[setup.files."flake.lock"]
+content = """
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "0000000000000000000000000000000000000000",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
+"""
+
+[setup.files."inner/a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = "git init -q inner && cd inner && git add . && sand format a.toml && ! grep -q nixpkgs .sand/sand.json"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."inner/a.toml"]
+content = """
+a = 1
+"""
