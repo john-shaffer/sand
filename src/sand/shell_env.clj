@@ -42,8 +42,11 @@
 
 (defn- cache-dir []
   (fs/path
-    (or (not-empty (getenv "XDG_CACHE_HOME")) (home-path ".cache"))
-    "sand" "shell-env"))
+    (or (not-empty (getenv "SAND_CACHE_DIR"))
+      (fs/path
+        (or (not-empty (getenv "XDG_CACHE_HOME")) (home-path ".cache"))
+        "sand"))
+    "shell-env"))
 
 (defn- sha256-hex [^String s]
   (let [digest (.digest (MessageDigest/getInstance "SHA-256")

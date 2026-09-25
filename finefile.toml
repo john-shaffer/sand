@@ -38,7 +38,7 @@ tags = ["format", "format-cached"]
 [commands.format-cached]
 command = "../../../result/bin/sand format example.sh"
 dir = ".bench/format/repo"
-env = { SAND_DATA_DIR = "../data", XDG_CACHE_HOME = "../cache" }
+env = { SAND_DATA_DIR = "../data", SAND_CACHE_DIR = "../cache" }
 prepare = "cp ../example.sh.orig example.sh"
 tags = ["format", "format-cached"]
 
@@ -53,7 +53,7 @@ tags = ["format", "format-uncached"]
 [commands.format-uncached]
 command = "../../../result/bin/sand format example.sh"
 dir = ".bench/format/repo"
-env = { SAND_DATA_DIR = "../data", XDG_CACHE_HOME = "../cache" }
+env = { SAND_DATA_DIR = "../data", SAND_CACHE_DIR = "../cache" }
 max-runs = 10
 prepare = "cp ../example.sh.orig example.sh && rm -rf ../cache"
 shell = "bash"
