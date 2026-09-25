@@ -246,13 +246,16 @@
                           (assoc m repo
                             (if (nil? repo)
                               paths
-                              (let [grouped (group-by fs/directory? paths)]
+                              (let [{dirs true files false} (group-by fs/directory? paths)]
                                 (concat
-                                  (get grouped false)
-                                  (map fs/path
-                                    (git/list-unignored-files
-                                      {:dir (str repo)}
-                                      (map str (get grouped true)))))))))
+                                  files
+                                  ; git ls-files with no pathspec lists the whole
+                                  ; repo, so only call it when dirs were given.
+                                  (when (seq dirs)
+                                    (map fs/path
+                                      (git/list-unignored-files
+                                        {:dir (str repo)}
+                                        (map str dirs)))))))))
                         {}))]
     (doseq [[repo paths] repo->paths]
       (when debug

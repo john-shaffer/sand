@@ -1,0 +1,27 @@
+name = "Only the given files are formatted in a git repo"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[setup.files."b.toml"]
+content = """
+b=2
+"""
+
+[[steps]]
+run = "git init -q . && git add . && sand format a.toml"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""
+
+[steps.expected.files."b.toml"]
+content = """
+b=2
+"""
