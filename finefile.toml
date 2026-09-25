@@ -18,6 +18,49 @@ tags = ["help", "native"]
 command = "result/bin/sand --version"
 tags = ["native", "version"]
 
+# The format benchmarks run in a fixture repo created by `just bench`.
+# Pairs of commands measure sand's overhead against running the
+# formatter without sand:
+#   format-direct vs format-cached: the formatter is installed and sand
+#     has a cached shell environment.
+#   format-nix-shell vs format-uncached: the formatter is installed, but
+#     there is no cached environment, so nix must be evaluated.
+# There is no benchmark for an uninstalled formatter, because deleting
+# store paths between runs is slow and unreliable. Downloading adds the
+# same time with or without sand.
+
+[commands.format-direct]
+command = "../bin/shfmt -w example.sh"
+dir = ".bench/format/repo"
+prepare = "cp ../example.sh.orig example.sh"
+shell = "bash"
+tags = ["format", "format-cached"]
+
+[commands.format-cached]
+command = "../../../result/bin/sand format example.sh"
+dir = ".bench/format/repo"
+env = { SAND_DATA_DIR = "../data", XDG_CACHE_HOME = "../cache" }
+prepare = "cp ../example.sh.orig example.sh"
+shell = "bash"
+tags = ["format", "format-cached"]
+
+[commands.format-nix-shell]
+command = "nix-shell -p shfmt --run 'shfmt -w example.sh'"
+dir = ".bench/format/repo"
+max-runs = 10
+prepare = "cp ../example.sh.orig example.sh"
+shell = "bash"
+tags = ["format", "format-uncached"]
+
+[commands.format-uncached]
+command = "../../../result/bin/sand format example.sh"
+dir = ".bench/format/repo"
+env = { SAND_DATA_DIR = "../data", XDG_CACHE_HOME = "../cache" }
+max-runs = 10
+prepare = "cp ../example.sh.orig example.sh && rm -rf ../cache"
+shell = "bash"
+tags = ["format", "format-uncached"]
+
 [plots.whisker]
 file = "plot-whisker.png"
 type = "whisker"
