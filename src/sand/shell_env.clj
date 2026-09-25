@@ -205,7 +205,7 @@
                  "--run" (str "env -0 > '" (str/replace env-file "'" "'\"'\"'") "'"))
           exit @(p/exit-ref proc)]
       (when-not (zero? exit)
-        (throw (ex-info "nix-shell failed" {:exit exit})))
+        (throw (u/user-error (str "nix-shell exited with code " exit) exit)))
       (parse-env-0 (slurp env-file)))))
 
 (defn- roots-parent-dir [dot-sand-dir]
@@ -314,15 +314,15 @@
           (println "sand: warning: failed to register GC roots, exit code" exit))))))
 
 (defn resolve-command
-  "Resolves cmd against the PATH in env, like a shell would. The JVM
-   resolves commands against its own PATH, not the child's."
+  "Resolves cmd against the PATH in env, like a shell would, returning nil
+   if it isn't found. The JVM resolves commands against its own PATH, not
+   the child's."
   [env cmd]
   (if (str/includes? cmd "/")
     cmd
-    (or (some
-          (fn [dir]
-            (let [^File f (fs/file (if (empty? dir) "." dir) cmd)]
-              (when (and (.isFile f) (.canExecute f))
-                (str f))))
-          (str/split (or (get env "PATH") (getenv "PATH") "") #":"))
-      cmd)))
+    (some
+      (fn [dir]
+        (let [^File f (fs/file (if (empty? dir) "." dir) cmd)]
+          (when (and (.isFile f) (.canExecute f))
+            (str f))))
+      (str/split (or (get env "PATH") (getenv "PATH") "") #":"))))

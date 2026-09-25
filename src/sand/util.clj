@@ -69,3 +69,12 @@
       (fs/move tmp path {:atomic-move true :replace-existing true})
       (finally
         (fs/delete-if-exists tmp)))))
+
+(defn user-error
+  "Returns an exception for an error that sand reports to the user as a
+   message, without a stack trace, and then exits with exit-code."
+  [msg exit-code]
+  (ex-info msg {::user-error true :exit-code exit-code}))
+
+(defn user-error? [e]
+  (boolean (::user-error (ex-data e))))

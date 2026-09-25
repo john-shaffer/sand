@@ -241,13 +241,19 @@
                           (fn [[cmd & args]]
                             (when debug
                               (log/debug (str "Running command: " (str/join " " (map u/shell-quote (cons cmd args))))))
-                            (let [proc (apply p/start
-                                         {:dir (str dir) :env env :err :inherit :out :inherit}
-                                         (shell-env/resolve-command env cmd)
-                                         args)
-                                  exit-code @(p/exit-ref proc)]
-                              (when-not (zero? exit-code)
-                                exit-code)))
+                            (if-let [resolved (shell-env/resolve-command env cmd)]
+                              (let [proc (apply p/start
+                                           {:dir (str dir) :env env :err :inherit :out :inherit}
+                                           resolved
+                                           args)
+                                    exit-code @(p/exit-ref proc)]
+                                (when-not (zero? exit-code)
+                                  exit-code))
+                              (do
+                                (binding [*out* *err*]
+                                  (println (str "sand: " cmd ": command not found")))
+                                ; The exit code a shell uses for this
+                                127)))
                           cmds)
                         (finally
                           (shell-env/finish! shell-env)))]
@@ -294,7 +300,15 @@
         {:keys [action exit-message ok?]} parsed-opts]
     (if exit-message
       (exit (if ok? 0 1) exit-message)
-      (case action
-        "check" (check parsed-opts)
-        "format" (fmt parsed-opts)
-        "shell" (shell parsed-opts)))))
+      (try
+        (case action
+          "check" (check parsed-opts)
+          "format" (fmt parsed-opts)
+          "shell" (shell parsed-opts))
+        (catch clojure.lang.ExceptionInfo e
+          (if (u/user-error? e)
+            (do
+              (binding [*out* *err*]
+                (println (str "sand: " (ex-message e))))
+              (exit (:exit-code (ex-data e))))
+            (throw e)))))))
