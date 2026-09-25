@@ -32,7 +32,8 @@
     [["-f" "--file FILE" "Configuration file"
       :default "sand.toml"]]}
    "format"
-   {:description "Format a source file."
+   {:aliases ["fmt"]
+    :description "Format a source file."
     :options
     [["-f" "--file FILE" "Configuration file"
       :default "sand.toml"]
@@ -45,6 +46,12 @@
     :options
     [["-f" "--file FILE" "Configuration file"
       :default "sand.toml"]]}})
+
+(def command-aliases
+  (into {}
+    (for [[k {:keys [aliases]}] cli-spec
+          alias aliases]
+      [alias k])))
 
 (defn command-usage [action parsed-opts]
   (let [{:keys [description]} (cli-spec action)
@@ -62,11 +69,13 @@
           (concat
             [nil
              "Commands:"]
-            (for [[k {:keys [description]}] cli-spec
+            (for [[k {:keys [aliases description]}] cli-spec
                   :when k]
               (str "  " k
                 (subs "                  " 0 (- 12 (count k)))
-                description))))))))
+                description
+                (when (seq aliases)
+                  (str " [alias: " (str/join ", " aliases) "]"))))))))))
 
 (defn reorder-help-args
   "Moves one or more help args after the action, if there is one.
@@ -91,7 +100,7 @@
         maybe-action (first args)
         action (when-not (or (nil? maybe-action)
                            (str/starts-with? maybe-action "-"))
-                 maybe-action)
+                 (get command-aliases maybe-action maybe-action))
         action-args (if action (next args) args)
         valid-action? (contains? cli-spec action)
         parsed-opts (when valid-action?
