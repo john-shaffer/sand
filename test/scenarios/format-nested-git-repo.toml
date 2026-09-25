@@ -1,0 +1,27 @@
+name = "A nested git repo uses its own .sand dir"
+
+[setup.files.".sand/sand.json"]
+content = """
+{}
+"""
+
+[setup.files."inner/a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = "git init -q inner && cd inner && git add . && sand format a.toml && test -f .sand/sand.json"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files.".sand/sand.json"]
+content = """
+{}
+"""
+
+[steps.expected.files."inner/a.toml"]
+content = """
+a = 1
+"""

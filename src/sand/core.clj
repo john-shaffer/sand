@@ -112,14 +112,13 @@
 
 (defn find-dot-sand-dir
   "Finds a .sand dir searching upward. Finds either an existing .sand dir
-   or creates a path next to an existing .git dir. Returns nil if neither
-   is found."
+   or creates a path next to an existing .git dir, whichever is nearest.
+   Returns nil if neither is found."
   ^Path [dir]
-  (or (find-filename-up dir [".sand"])
-    (some-> (find-filename-up dir [".git"])
-      fs/parent
-      fs/canonicalize
-      (fs/path ".sand"))))
+  (when-let [found (find-filename-up dir [".sand" ".git"])]
+    (if (= ".sand" (str (fs/file-name found)))
+      found
+      (-> found fs/parent fs/canonicalize (fs/path ".sand")))))
 
 (defn formatter-args [formatter shell-nix fnames]
   (let [{:strs [args args-config bin-name config-filenames package]} formatter
