@@ -190,7 +190,7 @@
       (shell-env/finish! (shell-env/shell-env! dot-sand-dir {:root? (not temp?)}))
       (p/exec
         {:dir base-dir
-         :env (get shell "env")
+         :env (merge (shell-env/nix-env) (get shell "env"))
          :err :inherit
          :in :inherit
          :out :inherit}

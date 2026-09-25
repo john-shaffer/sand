@@ -73,6 +73,37 @@
           [(home-path ".nix-defexpr" "channels")
            "/nix/var/nix/profiles/per-user/root/channels"])))))
 
+(defn- split-nix-path
+  "Splits NIX_PATH into entries. Entries may be URLs or flake refs that
+   contain colons, like flake:nixpkgs or https://..., so a part that looks
+   like a URL scheme is joined with the part after it."
+  [nix-path]
+  (reduce
+    (fn [entries part]
+      (let [prev (peek entries)]
+        (if (and prev (re-matches #"(?:[^=/]*=)?[a-zA-Z][a-zA-Z0-9+.-]*" prev))
+          (conj (pop entries) (str prev ":" part))
+          (conj entries part))))
+    []
+    (str/split nix-path #":")))
+
+(defn nix-env
+  "Returns environment variables to run nix with. nix warns about each
+   NIX_PATH entry that doesn't exist and then ignores it, so those entries
+   are removed to avoid the warnings without changing any behavior."
+  []
+  (let [nix-path (getenv "NIX_PATH")]
+    (when (seq nix-path)
+      (let [entries (split-nix-path nix-path)
+            kept (remove
+                   (fn [entry]
+                     (let [path (str/replace entry #"^[^=/]*=" "")]
+                       (and (str/starts-with? path "/")
+                         (not (fs/exists? path)))))
+                   entries)]
+        (when (not= entries kept)
+          {"NIX_PATH" (str/join ":" kept)})))))
+
 (defn cache-key
   "Returns a hash of everything known to affect the shell's evaluation."
   [dot-sand-dir]
@@ -163,7 +194,7 @@
                         (not-empty (getenv "SAND_BASH"))
                         "bash")
           proc (p/start
-                 {:env {"NIX_BUILD_SHELL" build-shell}
+                 {:env (assoc (nix-env) "NIX_BUILD_SHELL" build-shell)
                   :err :inherit
                   :out :inherit}
                  "nix-shell" (str (fs/path dot-sand-dir "shell.nix"))
