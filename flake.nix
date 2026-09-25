@@ -88,11 +88,11 @@
             {
               inherit (sandUnwrapped) meta name version;
 
-              nativeBuildInputs = [ makeWrapper ];
+              nativeBuildInputs = [ makeBinaryWrapper ];
             }
             ''
               mkdir -p $out/bin
-              makeWrapper ${sandUnwrapped}/bin/sand $out/bin/sand \
+              makeBinaryWrapper ${sandUnwrapped}/bin/sand $out/bin/sand \
                 --prefix PATH : ${lib.makeBinPath runtimePaths} \
                 --set-default SAND_BASH ${pkgs.bash}/bin/bash \
                 --set-default SAND_DATA_DIR ${sandUnwrapped}/share/sand \
