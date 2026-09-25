@@ -120,7 +120,9 @@
       found
       (-> found fs/parent fs/canonicalize (fs/path ".sand")))))
 
-(defn formatter-args [formatter shell-nix fnames]
+(defn formatter-args
+  "Returns a seq of argument vectors to run formatter on fnames."
+  [formatter fnames]
   (let [{:strs [args args-config bin-name config-filenames package]} formatter
         grouped-by-config (u/group-paths-by-ancestor
                             (fn [path]
@@ -130,7 +132,6 @@
                                   (fs/exists? (fs/path path cfg)) true
                                   :else (recur more))))
                             fnames)
-        base-command ["nix-shell" (str shell-nix) "--run"]
         cmd (or bin-name package)]
     (mapcat
       (fn [[config-dir fnames]]
@@ -165,8 +166,7 @@
 
                     (throw (ex-info "Invalid formatter" {:formatter formatter})))]
           (for [sas shell-arg-seqs]
-            (conj base-command
-              (str/join " " (map u/shell-quote (cons cmd sas)))))))
+            (into [cmd] (map str) sas))))
       grouped-by-config)))
 
 (defn formatter-for-file [formatters dir fname]
@@ -194,29 +194,9 @@
                        (into (set (get existing "shellPkgs")))
                        sort))))
 
-(defn build-shell!
-  "Builds the inputDerivation of .sand/shell.nix and symlinks it into
-   the .sand directory. The inputDerivation output references all build
-   inputs, keeping them alive as a GC root. Returns the out-link path."
-  [dot-sand-dir]
-  (let [shell-nix (str (fs/canonicalize (fs/path dot-sand-dir "shell.nix")))
-        gcroots-dir (fs/path dot-sand-dir "gcroots")
-        _ (when-not (fs/exists? gcroots-dir)
-            (fs/create-dir gcroots-dir))
-        out-link (str (fs/path gcroots-dir "shell"))
-        expr (str "(import " shell-nix " {}).inputDerivation")
-        proc (p/start
-               {:err :inherit :out :inherit}
-               "nix-build" "--expr" expr
-               "--out-link" out-link)
-        exit @(p/exit-ref proc)]
-    (when-not (zero? exit)
-      (throw (ex-info "nix-build failed" {:exit exit})))
-    out-link))
-
 (defn write-dot-sand-dir!
   "Writes sand.json and shell.nix into dot-sand-dir, creating the directory
-   if needed, then builds the shell. Returns dot-sand-dir."
+   if needed. Returns dot-sand-dir."
   [dot-sand-dir opts]
   (when-not (fs/exists? dot-sand-dir)
     (fs/create-dir dot-sand-dir))
@@ -237,14 +217,18 @@
           System/getenv
           (fs/path "shell.nix"))
         shell-nix-path))
-    (build-shell! dot-sand-dir)
     dot-sand-dir))
 
-(defmacro with-dot-sand-dir [[binding dir opts] & body]
+(defmacro with-dot-sand-dir
+  "Binds binding to `{:dot-sand-dir path :temp? bool}`. When no .sand dir
+   is found, a temporary one is used and deleted after body."
+  [[binding dir opts] & body]
   `(let [opts# ~opts]
      (if-let [found# (find-dot-sand-dir ~dir)]
-       (let [~binding (write-dot-sand-dir! found# opts#)]
+       (let [~binding {:dot-sand-dir (write-dot-sand-dir! found# opts#)
+                       :temp? false}]
          ~@body)
        (fs/with-temp-dir [tmp# {:prefix "sand"}]
-         (let [~binding (write-dot-sand-dir! tmp# opts#)]
+         (let [~binding {:dot-sand-dir (write-dot-sand-dir! tmp# opts#)
+                         :temp? true}]
            ~@body)))))

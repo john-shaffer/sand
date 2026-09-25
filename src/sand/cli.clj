@@ -8,6 +8,7 @@
    [sand.core :as core]
    [sand.git :as git]
    [sand.log :as log]
+   [sand.shell-env :as shell-env]
    [sand.util :as u]
    [toml-clj.core :as toml])
   (:gen-class))
@@ -175,7 +176,9 @@
         ; {:strs [shell]} (core/conform-config (toml/read-string config-str))
         shell {}
         nixpkgs-input (core/find-flake-nixpkgs base-dir)]
-    (core/with-dot-sand-dir [dot-sand-dir base-dir {:nixpkgs-input nixpkgs-input :packages []}]
+    (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} base-dir {:nixpkgs-input nixpkgs-input :packages []}]
+      ; Registers GC roots for the shell's inputs, if not already done.
+      (shell-env/finish! (shell-env/shell-env! dot-sand-dir {:root? (not temp?)}))
       (p/exec
         {:dir base-dir
          :env (get shell "env")
@@ -216,19 +219,31 @@
                          (seq (get formatter "runtime-packages"))))
                      actions))
         nixpkgs-input (core/find-flake-nixpkgs dir)]
-    (core/with-dot-sand-dir [dot-sand-dir dir {:nixpkgs-input nixpkgs-input :packages packages}]
-      (let [shell-nix (str (fs/path dot-sand-dir "shell.nix"))]
-        (doseq [[_ actions] (group-by :formatter-id actions)
-                :let [{:keys [formatter]} (first actions)]
-                cmd (core/formatter-args formatter shell-nix (map :fname actions))]
-          (when debug
-            (log/debug (str "Running command: " (str/join " " (map u/shell-quote cmd)))))
-          (let [proc (apply p/start
-                       {:dir (str dir) :err :inherit :out :inherit}
-                       cmd)
-                exit-code @(p/exit-ref proc)]
-            (when-not (zero? exit-code)
-              (exit exit-code))))))))
+    (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} dir {:nixpkgs-input nixpkgs-input :packages packages}]
+      (let [cmds (for [[_ actions] (group-by :formatter-id actions)
+                       :let [{:keys [formatter]} (first actions)]
+                       cmd (core/formatter-args formatter (map :fname actions))]
+                   cmd)
+            shell-env (when (seq cmds)
+                        (shell-env/shell-env! dot-sand-dir {:root? (not temp?)}))
+            env (:env shell-env)
+            exit-code (try
+                        (some
+                          (fn [[cmd & args]]
+                            (when debug
+                              (log/debug (str "Running command: " (str/join " " (map u/shell-quote (cons cmd args))))))
+                            (let [proc (apply p/start
+                                         {:dir (str dir) :env env :err :inherit :out :inherit}
+                                         (shell-env/resolve-command env cmd)
+                                         args)
+                                  exit-code @(p/exit-ref proc)]
+                              (when-not (zero? exit-code)
+                                exit-code)))
+                          cmds)
+                        (finally
+                          (shell-env/finish! shell-env)))]
+        (when exit-code
+          (exit exit-code))))))
 
 (defn fmt [{:keys [arguments options]}]
   (let [{:keys [debug]} options
