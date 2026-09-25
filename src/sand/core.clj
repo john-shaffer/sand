@@ -197,13 +197,14 @@
                        sort))))
 
 (defn write-dot-sand-dir!
-  "Writes sand.json and shell.nix into dot-sand-dir, creating the directory
-   if needed. Returns dot-sand-dir. Files are replaced atomically, because
-   other sand processes may be reading them."
+  "Writes sand.json, shell.nix, and .gitignore into dot-sand-dir, creating
+   the directory if needed. Returns dot-sand-dir. Files are replaced
+   atomically, because other sand processes may be reading them."
   [dot-sand-dir opts]
   (fs/create-dirs dot-sand-dir)
   (let [data-path (fs/path dot-sand-dir "sand.json")
         shell-nix-path (fs/path dot-sand-dir "shell.nix")
+        gitignore-path (fs/path dot-sand-dir ".gitignore")
         existing-data (try
                         (with-open [rdr (-> data-path fs/file io/reader)]
                           (json/read rdr))
@@ -219,6 +220,11 @@
         (u/write-atomically! shell-nix-path
           (fn [^java.io.Writer w]
             (.write w ^String (slurp (fs/file source)))))))
+    ; GC roots are specific to the machine
+    (when-not (fs/exists? gitignore-path)
+      (u/write-atomically! gitignore-path
+        (fn [^java.io.Writer w]
+          (.write w "/gcroots/\n"))))
     dot-sand-dir))
 
 (defmacro with-dot-sand-dir

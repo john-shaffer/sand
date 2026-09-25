@@ -1,0 +1,22 @@
+name = "GC roots are ignored by git"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = "git init -q . && git add a.toml && sand format a.toml && test -d .sand/gcroots && ! git status --porcelain --untracked-files=all | grep gcroots"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files.".sand/.gitignore"]
+content = """
+/gcroots/
+"""
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""
