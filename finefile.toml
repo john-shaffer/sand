@@ -33,7 +33,6 @@ tags = ["native", "version"]
 command = "../bin/shfmt -w example.sh"
 dir = ".bench/format/repo"
 prepare = "cp ../example.sh.orig example.sh"
-shell = "bash"
 tags = ["format", "format-cached"]
 
 [commands.format-cached]
@@ -41,7 +40,6 @@ command = "../../../result/bin/sand format example.sh"
 dir = ".bench/format/repo"
 env = { SAND_DATA_DIR = "../data", XDG_CACHE_HOME = "../cache" }
 prepare = "cp ../example.sh.orig example.sh"
-shell = "bash"
 tags = ["format", "format-cached"]
 
 [commands.format-nix-shell]
