@@ -1,0 +1,27 @@
+name = "Format a dir from a subdir of a git repo"
+
+[setup.files."top.toml"]
+content = """
+a=1
+"""
+
+[setup.files."src/x.toml"]
+content = """
+b=2
+"""
+
+[[steps]]
+run = "git init -q . && git add . && cd src && sand format ."
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."src/x.toml"]
+content = """
+b = 2
+"""
+
+[steps.expected.files."top.toml"]
+content = """
+a=1
+"""

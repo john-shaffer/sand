@@ -276,7 +276,8 @@
                                   ; git ls-files with no pathspec lists the whole
                                   ; repo, so only call it when dirs were given.
                                   (when (seq dirs)
-                                    (map fs/path
+                                    ; git lists paths relative to the repo root
+                                    (map #(fs/path repo %)
                                       (git/list-unignored-files
                                         {:dir (str repo)}
                                         (map str dirs)))))))))
