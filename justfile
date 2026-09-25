@@ -52,11 +52,19 @@ run *args:
 # Run tests against the built binary
 test *args:
     #!/usr/bin/env bash
+    set -euo pipefail
+    # Keep tests independent of the user's cache
+    export SAND_CACHE_DIR="$(mktemp -d)"
+    trap 'rm -rf "$SAND_CACHE_DIR"' EXIT
     PATH="$(nix build . --print-out-paths)/bin:$PATH" tact test {{ args }}
 
 # Run tests against the jar app, for development
 test-jar *args:
     #!/usr/bin/env bash
+    set -euo pipefail
+    # Keep tests independent of the user's cache
+    export SAND_CACHE_DIR="$(mktemp -d)"
+    trap 'rm -rf "$SAND_CACHE_DIR"' EXIT
     PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" tact test {{ args }}
 
 # Update dependencies
