@@ -1,6 +1,7 @@
 (ns sand.util
   (:require
    [babashka.fs :as fs]
+   [clojure.java.io :as io]
    [clojure.set :as set]
    [clojure.string :as str]))
 
@@ -51,3 +52,20 @@
     (if (re-matches #"[a-zA-Z0-9_./:@=+-]+" s)
       s
       (str \' (str/replace s "'" "'\"'\"'") \'))))
+
+(defn write-atomically!
+  "Calls (f writer) to write the file at path, replacing it atomically,
+   so that concurrent readers see either the old or the new contents."
+  [path f]
+  (let [path (fs/path path)
+        tmp (fs/create-temp-file {:dir (fs/parent path)
+                                  :prefix (str (fs/file-name path) ".")
+                                  :suffix ".tmp"})]
+    ; Temp files are created readable only by the owner
+    (fs/set-posix-file-permissions tmp "rw-r--r--")
+    (try
+      (with-open [w (io/writer (fs/file tmp))]
+        (f w))
+      (fs/move tmp path {:atomic-move true :replace-existing true})
+      (finally
+        (fs/delete-if-exists tmp)))))

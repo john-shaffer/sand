@@ -11,7 +11,8 @@
    [clojure.data.json :as json]
    [clojure.java.io :as io]
    [clojure.java.process :as p]
-   [clojure.string :as str])
+   [clojure.string :as str]
+   [sand.util :as u])
   (:import
    (java.io File)
    (java.nio.charset StandardCharsets)
@@ -207,43 +208,55 @@
         (throw (ex-info "nix-shell failed" {:exit exit})))
       (parse-env-0 (slurp env-file)))))
 
-(defn- roots-dir [dot-sand-dir]
+(defn- roots-parent-dir [dot-sand-dir]
   (fs/path dot-sand-dir "gcroots" "shell-env"))
 
-(defn- rooted?
-  "Returns true if the roots in dot-sand-dir are for the cache entry key."
+(defn- roots-dir
+  "Returns the dir holding the GC roots for the cache entry key. Each key
+   gets its own dir, so that concurrent runs never delete roots that
+   another run is registering or relying on."
   [dot-sand-dir key]
-  (let [dir (roots-dir dot-sand-dir)
-        ^File key-file (fs/file dir "key")]
-    (and (.exists key-file)
-      (= key (slurp key-file))
-      (fs/exists? (fs/path dir "root")))))
+  (fs/path (roots-parent-dir dot-sand-dir) (subs key 0 16)))
+
+(defn- rooted?
+  "Returns true if the roots for the cache entry key are registered."
+  [dot-sand-dir key]
+  (fs/exists? (fs/path (roots-dir dot-sand-dir key) "done")))
 
 (defn- start-rooting!
-  "Starts registering paths as GC roots under dot-sand-dir, replacing any
-   previous roots. Returns the process."
-  [dot-sand-dir paths]
-  (let [dir (roots-dir dot-sand-dir)
-        legacy-root (fs/path dot-sand-dir "gcroots" "shell")]
-    (when (fs/exists? dir)
-      (fs/delete-tree dir))
+  "Starts registering paths as GC roots for the cache entry key.
+   Returns the process."
+  [dot-sand-dir key paths]
+  (let [dir (roots-dir dot-sand-dir key)]
     (fs/create-dirs dir)
-    ; Older versions of sand rooted the shell's inputDerivation here.
-    (when (fs/sym-link? legacy-root)
-      (fs/delete legacy-root))
     (apply p/start
       {:err :inherit :out :discard}
       "nix-store" "--realise" "--add-root" (str (fs/path dir "root"))
       paths)))
 
+(defn- delete-other-roots!
+  "Deletes GC roots other than those for the cache entry key, including
+   those from older versions of sand. Errors are ignored, since a
+   concurrent run may be deleting the same files."
+  [dot-sand-dir key]
+  (let [keep-dir (roots-dir dot-sand-dir key)
+        parent (roots-parent-dir dot-sand-dir)]
+    (doseq [path (concat
+                   ; Older versions of sand rooted the shell's inputDerivation here.
+                   [(fs/path dot-sand-dir "gcroots" "shell")]
+                   (try (fs/list-dir parent) (catch Exception _ nil)))
+            :when (not= keep-dir path)]
+      (try
+        (if (fs/directory? path {:nofollow-links true})
+          (fs/delete-tree path)
+          (fs/delete-if-exists path))
+        (catch Exception _ nil)))))
+
 (defn- write-cache! [key m]
-  (let [dir (cache-dir)
-        _ (fs/create-dirs dir)
-        tmp (fs/create-temp-file {:dir dir :prefix (str key ".") :suffix ".tmp"})]
-    (with-open [w (io/writer (fs/file tmp))]
-      (json/write m w))
-    (fs/move tmp (fs/path dir (str key ".json"))
-      {:atomic-move true :replace-existing true})))
+  (let [dir (cache-dir)]
+    (fs/create-dirs dir)
+    (u/write-atomically! (fs/path dir (str key ".json"))
+      #(json/write m %))))
 
 (defn- read-cache
   "Returns the cache entry for key, or nil if it is missing or references
@@ -283,7 +296,7 @@
      :rooting (when (and root? (seq paths) (not (rooted? dot-sand-dir key)))
                 {:dot-sand-dir dot-sand-dir
                  :key key
-                 :proc (start-rooting! dot-sand-dir paths)})}))
+                 :proc (start-rooting! dot-sand-dir key paths)})}))
 
 (defn finish!
   "Waits for any background work started by shell-env!."
@@ -291,7 +304,12 @@
   (when-let [{:keys [dot-sand-dir key proc]} rooting]
     (let [exit @(p/exit-ref proc)]
       (if (zero? exit)
-        (spit (fs/file (roots-dir dot-sand-dir) "key") key)
+        (try
+          (spit (fs/file (roots-dir dot-sand-dir key) "done") "")
+          (delete-other-roots! dot-sand-dir key)
+          (catch Exception e
+            (binding [*out* *err*]
+              (println "sand: warning: failed to record GC roots:" (ex-message e)))))
         (binding [*out* *err*]
           (println "sand: warning: failed to register GC roots, exit code" exit))))))
 

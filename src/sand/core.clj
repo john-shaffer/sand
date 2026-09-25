@@ -198,10 +198,10 @@
 
 (defn write-dot-sand-dir!
   "Writes sand.json and shell.nix into dot-sand-dir, creating the directory
-   if needed. Returns dot-sand-dir."
+   if needed. Returns dot-sand-dir. Files are replaced atomically, because
+   other sand processes may be reading them."
   [dot-sand-dir opts]
-  (when-not (fs/exists? dot-sand-dir)
-    (fs/create-dir dot-sand-dir))
+  (fs/create-dirs dot-sand-dir)
   (let [data-path (fs/path dot-sand-dir "sand.json")
         shell-nix-path (fs/path dot-sand-dir "shell.nix")
         existing-data (try
@@ -210,15 +210,15 @@
                         (catch Exception _ nil))
         data (generate-sand-json existing-data opts)]
     (when (not= existing-data data)
-      (with-open [w (-> data-path fs/file io/writer)]
-        (json/write data w :indent true)
-        (.write w "\n")))
+      (u/write-atomically! data-path
+        (fn [^java.io.Writer w]
+          (json/write data w :indent true)
+          (.write w "\n"))))
     (when-not (fs/exists? shell-nix-path)
-      (fs/copy
-        (-> "SAND_DATA_DIR"
-          System/getenv
-          (fs/path "shell.nix"))
-        shell-nix-path))
+      (let [source (-> "SAND_DATA_DIR" System/getenv (fs/path "shell.nix"))]
+        (u/write-atomically! shell-nix-path
+          (fn [^java.io.Writer w]
+            (.write w ^String (slurp (fs/file source)))))))
     dot-sand-dir))
 
 (defmacro with-dot-sand-dir
