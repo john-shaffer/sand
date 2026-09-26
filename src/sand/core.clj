@@ -223,11 +223,14 @@
                 (fn [^java.io.Writer w]
                   (json/write data w :indent true)
                   (.write w "\n"))))))))
-    (when-not (fs/exists? shell-nix-path)
-      (let [source (-> "SAND_DATA_DIR" System/getenv (fs/path "shell.nix"))]
+    ; shell.nix is generated, so replace it whenever sand's template
+    ; changes. Otherwise repos would keep whatever version they started with.
+    (let [template (-> "SAND_DATA_DIR" System/getenv (fs/file "shell.nix") slurp)]
+      (when-not (= template (try (slurp (fs/file shell-nix-path))
+                              (catch java.io.IOException _ nil)))
         (u/write-atomically! shell-nix-path
           (fn [^java.io.Writer w]
-            (.write w ^String (slurp (fs/file source)))))))
+            (.write w ^String template)))))
     ; GC roots are specific to the machine, and the lock file is only
     ; used while sand runs.
     (when-not (fs/exists? gitignore-path)

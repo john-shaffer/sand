@@ -1,0 +1,23 @@
+name = "An outdated .sand/shell.nix is replaced"
+
+[setup.files.".sand/shell.nix"]
+content = """
+# AUTO-GENERATED: Do not modify.
+throw "outdated shell.nix"
+"""
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = "git init -q . && git add a.toml && sand format a.toml && ! grep -q outdated .sand/shell.nix"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""

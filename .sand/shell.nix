@@ -9,11 +9,14 @@ let
     name = "sand-json";
   };
   data = builtins.fromJSON (builtins.readFile jsonPath);
-  locked = data.nixpkgs.locked;
-  nixpkgs = fetchTarball {
-    url = "https://github.com/${locked.owner}/${locked.repo}/archive/${locked.rev}.tar.gz";
-    sha256 = locked.narHash;
-  };
+  nixpkgs =
+    if data ? nixpkgs && data.nixpkgs ? locked then
+      fetchTarball {
+        url = "https://github.com/${data.nixpkgs.locked.owner}/${data.nixpkgs.locked.repo}/archive/${data.nixpkgs.locked.rev}.tar.gz";
+        sha256 = data.nixpkgs.locked.narHash;
+      }
+    else
+      <nixpkgs>;
   pkgs' = if pkgs != null then pkgs else import nixpkgs { };
 in
 pkgs'.mkShell {
