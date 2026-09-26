@@ -1,0 +1,27 @@
+name = "Options can come before the command or after files"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[setup.files."b.toml"]
+content = """
+b=2
+"""
+
+[[steps]]
+run = "sand --debug format a.toml > out1 && sand format b.toml --debug > out2 && grep -q 'Running command' out1 && grep -q 'Running command' out2"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""
+
+[steps.expected.files."b.toml"]
+content = """
+b = 2
+"""

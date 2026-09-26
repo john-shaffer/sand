@@ -1,10 +1,10 @@
 (ns sand.cli
   (:require
+   [babashka.cli :as cli]
    [babashka.fs :as fs]
    [clojure.java.io :as io]
    [clojure.java.process :as p]
    [clojure.string :as str]
-   [clojure.tools.cli :refer [parse-opts]]
    [sand.core :as core]
    [sand.git :as git]
    [sand.log :as log]
@@ -16,125 +16,122 @@
 (def ^:const BIN-NAME "sand")
 (def ^:const BIN-VERSION "0.1.0")
 
-(def global-options
-  [[nil "--debug"]
-   ["-h" "--help"]])
+(def global-spec
+  "Options accepted by every command, before or after the command name."
+  {:debug {:coerce :boolean :desc "Print debugging information"}
+   :help {:alias :h :coerce :boolean :desc "Show help"}})
 
-(def cli-spec
-  {nil
-   {:description
-    "A CLI for development environments."
-    :options
-    [[nil "--version"]]}
-   "check"
-   {:description "Check syntax of a config file."
-    :options
-    [["-f" "--file FILE" "Configuration file"
-      :default "sand.toml"]]}
-   "format"
-   {:aliases ["fmt"]
-    :description "Format a source file."
-    :options
-    [["-f" "--file FILE" "Configuration file"
-      :default "sand.toml"]
-     [nil nil "File to format"
-      :id :files-to-format
-      :required "FILE"]]}
-   "shell"
-   {:description
-    "Start a development shell."
-    :options
-    [["-f" "--file FILE" "Configuration file"
-      :default "sand.toml"]]}})
+(def file-spec
+  {:file {:alias :f :default "sand.toml" :ref "FILE" :desc "Configuration file"}})
 
-(def command-aliases
-  (into {}
-    (for [[k {:keys [aliases]}] cli-spec
-          alias aliases]
-      [alias k])))
+(def root-command
+  {:description "A CLI for development environments."
+   :spec {:version {:coerce :boolean :desc "Print the version"}}})
 
-(defn command-usage [action parsed-opts]
-  (let [{:keys [description]} (cli-spec action)
-        {:keys [summary]} parsed-opts]
+(def commands
+  "The commands, in the order to list them in help."
+  [{:name "check"
+    :description "Check syntax of a config file."
+    :spec file-spec}
+   {:name "format"
+    :aliases ["fmt"]
+    :args-usage "[FILE...]"
+    :description "Format source files."
+    :spec file-spec}
+   {:name "shell"
+    :description "Start a development shell."
+    :spec file-spec}])
+
+(defn- command-named [action]
+  (some #(when (= action (:name %)) %) commands))
+
+(defn- parse-cli
+  "Parses args, returning a map with the :action (nil for no command),
+   and the :opts and :args parsed by babashka.cli. Throws an ExceptionInfo
+   for an invalid option."
+  [args]
+  (cli/dispatch
+    (concat
+      (for [{:keys [aliases args-usage name spec]} commands
+            cmd (cons name aliases)]
+        (cond-> {:cmds [cmd]
+                 :fn #(assoc % :action name)
+                 :restrict true
+                 :spec spec}
+          ; Binding positional args to an option lets options come after
+          ; them, like `sand format a.rs --debug`.
+          args-usage (assoc :args->opts (repeat :files)
+                       :spec (assoc spec :files {:coerce []}))))
+      [{:cmds []
+        :fn #(assoc % :action nil)
+        :restrict true
+        :spec (:spec root-command)}])
+    args
+    {:spec global-spec}))
+
+(defn command-usage [action]
+  (let [{:keys [args-usage description spec]} (or (command-named action) root-command)]
     (str/join "\n"
       (concat
-        [(str "Usage:\t" BIN-NAME " " (or action "[command]") " [options]")
-         nil]
-        (when description
-          [description
-           nil])
-        ["Options:"
-         summary]
+        [(str "Usage:\t" BIN-NAME " " (or action "[command]") " [options]"
+           (when args-usage (str " " args-usage)))
+         nil
+         description
+         nil
+         "Options:"
+         (cli/format-opts {:spec (merge spec global-spec)
+                           :order (vec (concat (keys spec) (keys global-spec)))})]
         (when (nil? action)
           (concat
             [nil
              "Commands:"]
-            (for [[k {:keys [aliases description]}] cli-spec
-                  :when k]
-              (str "  " k
-                (subs "                  " 0 (- 12 (count k)))
+            (for [{:keys [aliases description name]} commands]
+              (str "  " name
+                (subs "            " 0 (- 12 (count name)))
                 description
                 (when (seq aliases)
                   (str " [alias: " (str/join ", " aliases) "]"))))))))))
-
-(defn reorder-help-args
-  "Moves one or more help args after the action, if there is one.
-   This allows `sand --help bench` to work the same as
-   `sand bench --help`."
-  [args]
-  (let [farg (first args)]
-    (if (or (= "-h" farg) (= "--help" farg))
-      (let [other-args (some->> args next reorder-help-args)]
-        (if (some-> (first other-args) (str/starts-with? "-"))
-          args
-          (cons (first other-args)
-            (cons farg (rest other-args)))))
-      args)))
 
 (defn validate-args
   "Validate command line arguments. Either return a map indicating the program
   should exit (with an error message, and optional ok status), or a map
   indicating the action the program should take and the options provided."
   [args]
-  (let [args (reorder-help-args args)
-        maybe-action (first args)
-        action (when-not (or (nil? maybe-action)
-                           (str/starts-with? maybe-action "-"))
-                 (get command-aliases maybe-action maybe-action))
-        action-args (if action (next args) args)
-        valid-action? (contains? cli-spec action)
-        parsed-opts (when valid-action?
-                      (parse-opts action-args
-                        (concat
-                          (:options (cli-spec action))
-                          global-options)))
-        {:keys [options errors]} parsed-opts]
-    (when (:debug options)
+  (let [{:keys [action error opts] :as parsed}
+        (try
+          (parse-cli args)
+          (catch clojure.lang.ExceptionInfo e
+            {:error (ex-message e)}))
+        ; Args after -- aren't parsed as options
+        arguments (vec (concat (:files opts) (:args parsed)))]
+    (when (:debug opts)
       (print "parsed-opts: ")
-      (prn parsed-opts))
+      (prn parsed))
     (cond
-      (not valid-action?)
-      {:exit-message (str "Unknown command: " action)
+      error
+      {:exit-message error
        :ok? false}
 
-      (seq errors)
-      {:exit-message (str/join \newline errors)
+      (and (nil? action) (seq arguments))
+      {:exit-message (str "Unknown command: " (first arguments))
        :ok? false}
 
-      (:help options)
-      {:exit-message (command-usage action parsed-opts)
+      (:help opts)
+      {:exit-message (command-usage action)
        :ok? true}
 
-      (and (:version options) (nil? action))
+      (and (:version opts) (nil? action))
       {:exit-message (str BIN-NAME " " BIN-VERSION)
        :ok? true}
 
       (nil? action)
-      {:exit-message (command-usage nil parsed-opts)
+      {:exit-message (command-usage nil)
        :ok? true}
 
       :else
-      (assoc parsed-opts :action action))))
+      {:action action
+       :arguments arguments
+       :options (dissoc opts :files)})))
 
 (defn ^:dynamic exit
   ([status] (System/exit status))
@@ -315,7 +312,10 @@
   (let [parsed-opts (validate-args args)
         {:keys [action exit-message ok?]} parsed-opts]
     (if exit-message
-      (exit (if ok? 0 1) exit-message)
+      (if ok?
+        (exit 0 exit-message)
+        (binding [*out* *err*]
+          (exit 1 exit-message)))
       (try
         (case action
           "check" (check parsed-opts)

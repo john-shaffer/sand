@@ -448,6 +448,16 @@
       "hash": "sha256-v4NILZb3bWNpnWPhJeZPSsc8gXiYVzNmLb1pr5xgM54="
     },
     {
+      "mvn-path": "org/babashka/cli/0.12.91/cli-0.12.91.jar",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-HPvn4scG4lHZJJLPpXV5ZqbQ17aFZ64AC4fmF5B2HHs="
+    },
+    {
+      "mvn-path": "org/babashka/cli/0.12.91/cli-0.12.91.pom",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-GOm1BZ4Y57ceXAMRday66MGVQ5VIwT7epmKfI6r2DlE="
+    },
+    {
       "mvn-path": "org/babashka/cli/0.5.40/cli-0.5.40.jar",
       "mvn-repo": "https://repo.clojars.org/",
       "hash": "sha256-XC/tIeZKlUN37tY72VgnYIHgEYoNTV/rO1gDi/iguJQ="
@@ -766,16 +776,6 @@
       "mvn-path": "org/clojure/tools.cli/1.1.230/tools.cli-1.1.230.pom",
       "mvn-repo": "https://repo1.maven.org/maven2/",
       "hash": "sha256-v7Yh5LAaW4vOEWpgcIQNzdWUnomceEaNgRtuiqqf0cc="
-    },
-    {
-      "mvn-path": "org/clojure/tools.cli/1.4.256/tools.cli-1.4.256.jar",
-      "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-Ki0Xaapc7VqkDpLI/1aOonUTmLDqRVIDCHdOwjF6vO4="
-    },
-    {
-      "mvn-path": "org/clojure/tools.cli/1.4.256/tools.cli-1.4.256.pom",
-      "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-/qEx3Gd2IhiOYSq+ReiSocpFmL7w8URl04ul1Y9+qd4="
     },
     {
       "mvn-path": "org/clojure/tools.deps/0.23.1512/tools.deps-0.23.1512.jar",
