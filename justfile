@@ -56,6 +56,8 @@ test *args:
     # Keep tests independent of the user's cache
     export SAND_CACHE_DIR="$(mktemp -d)"
     trap 'rm -rf "$SAND_CACHE_DIR"' EXIT
+    # For scenarios that need a modified copy of sand's data files
+    export SAND_SOURCE_DATA_DIR="$(realpath ./data/sand)"
     PATH="$(nix build . --print-out-paths)/bin:$PATH" tact test {{ args }}
 
 # Run tests against the jar app, for development
@@ -65,6 +67,8 @@ test-jar *args:
     # Keep tests independent of the user's cache
     export SAND_CACHE_DIR="$(mktemp -d)"
     trap 'rm -rf "$SAND_CACHE_DIR"' EXIT
+    # For scenarios that need a modified copy of sand's data files
+    export SAND_SOURCE_DATA_DIR="$(realpath ./data/sand)"
     PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" tact test {{ args }}
 
 # Update dependencies

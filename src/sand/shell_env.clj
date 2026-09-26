@@ -109,16 +109,14 @@
           {"NIX_PATH" (str/join ":" kept)})))))
 
 (defn cache-key
-  "Returns a hash of everything known to affect the shell's evaluation."
-  [dot-sand-dir]
-  (let [sand-json (slurp (fs/file dot-sand-dir "sand.json"))
-        pinned? (contains? (json/read-str sand-json) "nixpkgs")]
+  "Returns a hash of everything known to affect the evaluation of a shell
+   with the given shell.nix and sand.json contents."
+  [shell-nix sand-json]
+  (let [pinned? (contains? (json/read-str sand-json) "nixpkgs")]
     (sha256-hex
       (str/join "\u0000"
         (concat
-          [cache-version
-           sand-json
-           (slurp (fs/file dot-sand-dir "shell.nix"))]
+          [cache-version sand-json shell-nix]
           (for [k nixpkgs-env-vars]
             (str k "=" (getenv k)))
           (map path-state
@@ -187,10 +185,14 @@
       vec)))
 
 (defn- capture!
-  "Runs nix-shell to capture the environment of dot-sand-dir's shell.nix.
-   This is the only step that evaluates nix."
-  [dot-sand-dir]
+  "Runs nix-shell to capture the environment of a shell with the given
+   shell.nix and sand.json contents. This is the only step that evaluates
+   nix. It runs in a temp dir, so that .sand/sand.json is only changed
+   after the evaluation has succeeded."
+  [shell-nix sand-json]
   (fs/with-temp-dir [tmp {:prefix "sand"}]
+    (spit (fs/file tmp "shell.nix") shell-nix)
+    (spit (fs/file tmp "sand.json") sand-json)
     (let [env-file (str (fs/path tmp "env"))
           ; Without NIX_BUILD_SHELL, nix-shell evaluates <nixpkgs> a second
           ; time just to find bashInteractive, which takes seconds.
@@ -201,7 +203,7 @@
                  {:env (assoc (nix-env) "NIX_BUILD_SHELL" build-shell)
                   :err :inherit
                   :out :inherit}
-                 "nix-shell" (str (fs/path dot-sand-dir "shell.nix"))
+                 "nix-shell" (str (fs/path tmp "shell.nix"))
                  "--run" (str "env -0 > '" (str/replace env-file "'" "'\"'\"'") "'"))
           exit @(p/exit-ref proc)]
       (when-not (zero? exit)
@@ -273,19 +275,21 @@
           m)))))
 
 (defn shell-env!
-  "Returns the environment of dot-sand-dir's shell as
-   a map whose :env holds the variables to set on top of the current
-   environment.
+  "Returns the environment of a shell for dot-sand-dir's shell.nix with
+   sand-json as the contents of its sand.json, as a map whose :env holds
+   the variables to set on top of the current environment. sand-json may
+   differ from the sand.json in dot-sand-dir, which is left unchanged.
 
    Evaluates nix only if there is no valid cache entry. When root? is true,
    the shell's inputs are registered as GC roots in dot-sand-dir if they
    aren't already. That runs in the background: call `finish!` on the
    result to wait for it."
-  [dot-sand-dir {:keys [root?]}]
-  (let [key (cache-key dot-sand-dir)
+  [dot-sand-dir sand-json {:keys [root?]}]
+  (let [shell-nix (slurp (fs/file dot-sand-dir "shell.nix"))
+        key (cache-key shell-nix sand-json)
         outer (into {} (System/getenv))
         {:strs [diff paths]} (or (read-cache key)
-                               (let [captured (capture! dot-sand-dir)
+                               (let [captured (capture! shell-nix sand-json)
                                      diff (env-diff outer captured)
                                      m {"diff" diff
                                         "paths" (store-paths captured diff)

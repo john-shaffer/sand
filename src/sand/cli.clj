@@ -175,6 +175,20 @@
           (io/copy config-str stdin)))
       (exit @(p/exit-ref p)))))
 
+(defn- load-shell-env!
+  "Returns the shell environment for dot-sand-dir, as returned by
+   shell-env/shell-env!, with the packages and nixpkgs input in
+   sand-json-opts added. They are only saved to sand.json once the shell
+   has been evaluated successfully, so a package that doesn't exist or
+   fails to build doesn't break later runs."
+  [dot-sand-dir temp? sand-json-opts]
+  (let [sand-json (-> (core/read-sand-json dot-sand-dir)
+                    (core/generate-sand-json sand-json-opts)
+                    core/sand-json-str)
+        result (shell-env/shell-env! dot-sand-dir sand-json {:root? (not temp?)})]
+    (core/update-sand-json! dot-sand-dir sand-json-opts)
+    result))
+
 (defn shell [{:keys [options]}]
   (let [; {:keys [file]} options
         ; TODO Use sand.toml if exists
@@ -185,9 +199,10 @@
         ; {:strs [shell]} (core/conform-config (toml/read-string config-str))
         shell {}
         nixpkgs-input (core/find-flake-nixpkgs base-dir)]
-    (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} base-dir {:nixpkgs-input nixpkgs-input :packages []}]
+    (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} base-dir]
       ; Registers GC roots for the shell's inputs, if not already done.
-      (shell-env/finish! (shell-env/shell-env! dot-sand-dir {:root? (not temp?)}))
+      (shell-env/finish!
+        (load-shell-env! dot-sand-dir temp? {:nixpkgs-input nixpkgs-input :packages []}))
       (p/exec
         {:dir base-dir
          :env (merge (shell-env/nix-env) (get shell "env"))
@@ -228,13 +243,14 @@
                          (seq (get formatter "runtime-packages"))))
                      actions))
         nixpkgs-input (core/find-flake-nixpkgs dir)]
-    (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} dir {:nixpkgs-input nixpkgs-input :packages packages}]
+    (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} dir]
       (let [cmds (for [[_ actions] (group-by :formatter-id actions)
                        :let [{:keys [formatter]} (first actions)]
                        cmd (core/formatter-args formatter (map :fname actions))]
                    cmd)
             shell-env (when (seq cmds)
-                        (shell-env/shell-env! dot-sand-dir {:root? (not temp?)}))
+                        (load-shell-env! dot-sand-dir temp?
+                          {:nixpkgs-input nixpkgs-input :packages packages}))
             env (:env shell-env)
             exit-code (try
                         (some

@@ -196,33 +196,56 @@
                        (into (set (get existing "shellPkgs")))
                        sort))))
 
-(defn write-dot-sand-dir!
-  "Writes sand.json, shell.nix, and .gitignore into dot-sand-dir, creating
-   the directory if needed. Returns dot-sand-dir. Files are replaced
-   atomically, because other sand processes may be reading them."
+(defn- canonicalize-json
+  "Sorts the keys of all maps in x, so that it serializes the same way
+   regardless of how it was built."
+  [x]
+  (cond
+    (map? x) (into (sorted-map) (update-vals x canonicalize-json))
+    (sequential? x) (mapv canonicalize-json x)
+    :else x))
+
+(defn sand-json-str
+  "Returns the contents of a sand.json file for data."
+  [data]
+  (str (json/write-str (canonicalize-json data) :indent true) "\n"))
+
+(defn read-sand-json
+  "Returns the parsed sand.json in dot-sand-dir, or nil if it is missing
+   or invalid."
+  [dot-sand-dir]
+  (try
+    (with-open [rdr (-> (fs/path dot-sand-dir "sand.json") fs/file io/reader)]
+      (json/read rdr))
+    (catch Exception _ nil)))
+
+(defn update-sand-json!
+  "Adds the packages and nixpkgs input in opts to dot-sand-dir's sand.json,
+   if they aren't already there."
   [dot-sand-dir opts]
+  (when (not= (read-sand-json dot-sand-dir)
+          (generate-sand-json (read-sand-json dot-sand-dir) opts))
+    ; Another process may be adding different packages at the same time,
+    ; so re-read and update sand.json while holding a lock, so that
+    ; neither update is lost. The file is still replaced atomically,
+    ; because readers, including nix, don't take the lock.
+    (u/with-file-lock (fs/path dot-sand-dir "sand.json.lock")
+      (fn []
+        (let [existing (read-sand-json dot-sand-dir)
+              data (generate-sand-json existing opts)]
+          (when (not= existing data)
+            (u/write-atomically! (fs/path dot-sand-dir "sand.json")
+              (fn [^java.io.Writer w]
+                (.write w ^String (sand-json-str data))))))))))
+
+(defn prepare-dot-sand-dir!
+  "Creates dot-sand-dir if needed, and writes its shell.nix and .gitignore.
+   Returns dot-sand-dir. Files are replaced atomically, because other sand
+   processes may be reading them."
+  [dot-sand-dir]
   (fs/create-dirs dot-sand-dir)
-  (let [data-path (fs/path dot-sand-dir "sand.json")
-        shell-nix-path (fs/path dot-sand-dir "shell.nix")
-        gitignore-path (fs/path dot-sand-dir ".gitignore")
-        read-data #(try
-                     (with-open [rdr (-> data-path fs/file io/reader)]
-                       (json/read rdr))
-                     (catch Exception _ nil))
-        existing-data (read-data)]
-    (when (not= existing-data (generate-sand-json existing-data opts))
-      ; Another process may be adding different packages at the same time,
-      ; so re-read and update sand.json while holding a lock, so that
-      ; neither update is lost.
-      (u/with-file-lock (fs/path dot-sand-dir "sand.json.lock")
-        (fn []
-          (let [existing-data (read-data)
-                data (generate-sand-json existing-data opts)]
-            (when (not= existing-data data)
-              (u/write-atomically! data-path
-                (fn [^java.io.Writer w]
-                  (json/write data w :indent true)
-                  (.write w "\n"))))))))
+  (let [shell-nix-path (fs/path dot-sand-dir "shell.nix")
+        gitignore-path (fs/path dot-sand-dir ".gitignore")]
     ; shell.nix is generated, so replace it whenever sand's template
     ; changes. Otherwise repos would keep whatever version they started with.
     (let [template (-> "SAND_DATA_DIR" System/getenv (fs/file "shell.nix") slurp)]
@@ -242,13 +265,12 @@
 (defmacro with-dot-sand-dir
   "Binds binding to `{:dot-sand-dir path :temp? bool}`. When no .sand dir
    is found, a temporary one is used and deleted after body."
-  [[binding dir opts] & body]
-  `(let [opts# ~opts]
-     (if-let [found# (find-dot-sand-dir ~dir)]
-       (let [~binding {:dot-sand-dir (write-dot-sand-dir! found# opts#)
-                       :temp? false}]
-         ~@body)
-       (fs/with-temp-dir [tmp# {:prefix "sand"}]
-         (let [~binding {:dot-sand-dir (write-dot-sand-dir! tmp# opts#)
-                         :temp? true}]
-           ~@body)))))
+  [[binding dir] & body]
+  `(if-let [found# (find-dot-sand-dir ~dir)]
+     (let [~binding {:dot-sand-dir (prepare-dot-sand-dir! found#)
+                     :temp? false}]
+       ~@body)
+     (fs/with-temp-dir [tmp# {:prefix "sand"}]
+       (let [~binding {:dot-sand-dir (prepare-dot-sand-dir! tmp#)
+                       :temp? true}]
+         ~@body))))

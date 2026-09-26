@@ -1,0 +1,30 @@
+name = "A package that isn't in nixpkgs isn't saved to sand.json"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[setup.files."b.zz"]
+content = """
+b
+"""
+
+[[steps]]
+run = """
+mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
+  && printf '[nopkg]\\nargs = ["*@"]\\nextensions = ["zz"]\\npackage = "no-such-package-xyz"\\n' >> data/formatters.toml \
+  && git init -q . && git add a.toml b.zz \
+  && { SAND_DATA_DIR="$PWD/data" sand format b.zz 2> err; test $? = 1; } \
+  && grep -q "sand: package 'no-such-package-xyz' isn't in" err \
+  && ! grep -qs no-such-package .sand/sand.json \
+  && SAND_DATA_DIR="$PWD/data" sand format a.toml
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""
