@@ -18,7 +18,22 @@ let
     else
       <nixpkgs>;
   pkgs' = if pkgs != null then pkgs else import nixpkgs { };
+  pkgsDescription =
+    if pkgs != null then
+      "the given pkgs"
+    else if data ? nixpkgs && data.nixpkgs ? locked then
+      "nixpkgs ${data.nixpkgs.locked.rev}"
+    else
+      "<nixpkgs>";
+  # A package can disappear when nixpkgs is updated, so give a clearer
+  # error than nix's missing attribute error.
+  getPkg =
+    name:
+    if pkgs' ? ${name} then
+      pkgs'.${name}
+    else
+      throw "sand: package '${name}' isn't in ${pkgsDescription}";
 in
 pkgs'.mkShell {
-  buildInputs = (if data ? shellPkgs then map (str: pkgs'.${str}) data.shellPkgs else [ ]);
+  buildInputs = (if data ? shellPkgs then map getPkg data.shellPkgs else [ ]);
 }
