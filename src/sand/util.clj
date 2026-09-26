@@ -3,7 +3,10 @@
    [babashka.fs :as fs]
    [clojure.java.io :as io]
    [clojure.set :as set]
-   [clojure.string :as str]))
+   [clojure.string :as str])
+  (:import
+   (java.nio.channels FileChannel)
+   (java.nio.file OpenOption StandardOpenOption)))
 
 (defn group-paths-by-ancestor
   "Returns a map whose keys are ancestor paths matching a predicate
@@ -78,3 +81,15 @@
 
 (defn user-error? [e]
   (boolean (::user-error (ex-data e))))
+
+(defn with-file-lock
+  "Calls f while holding an exclusive lock on the file at path, creating
+   the file if needed. The lock file is never deleted, since deleting it
+   would let two processes lock different files at the same path."
+  [path f]
+  (with-open [ch (FileChannel/open (fs/path path)
+                   (into-array OpenOption
+                     [StandardOpenOption/CREATE StandardOpenOption/WRITE]))]
+    ; Closing the channel releases the lock
+    (.lock ch)
+    (f)))

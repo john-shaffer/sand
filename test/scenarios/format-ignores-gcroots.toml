@@ -1,4 +1,4 @@
-name = "GC roots are ignored by git"
+name = "Machine-specific files in .sand are ignored by git"
 
 [setup.files."a.toml"]
 content = """
@@ -6,7 +6,7 @@ a=1
 """
 
 [[steps]]
-run = "git init -q . && git add a.toml && sand format a.toml && test -d .sand/gcroots && ! git status --porcelain --untracked-files=all | grep gcroots"
+run = "git init -q . && git add a.toml && sand format a.toml && test -d .sand/gcroots && ! git status --porcelain --untracked-files=all | grep 'gcroots\\|lock'"
 
 [steps.expected]
 exit-code = 0
@@ -14,6 +14,7 @@ exit-code = 0
 [steps.expected.files.".sand/.gitignore"]
 content = """
 /gcroots/
+/sand.json.lock
 """
 
 [steps.expected.files."a.toml"]

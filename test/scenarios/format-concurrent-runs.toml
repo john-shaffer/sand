@@ -1,0 +1,28 @@
+name = "Concurrent runs keep every package in sand.json"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[setup.files."b.json"]
+content = """
+{"b":2}
+"""
+
+[setup.files."c.nix"]
+content = """
+{  }
+"""
+
+[[steps]]
+run = """
+git init -q . && git add . \
+  && { sand format a.toml & sand format b.json & sand format c.nix & wait; } \
+  && grep -q '"taplo"' .sand/sand.json \
+  && grep -q '"jsonfmt"' .sand/sand.json \
+  && grep -q '"nixfmt"' .sand/sand.json
+"""
+
+[steps.expected]
+exit-code = 0

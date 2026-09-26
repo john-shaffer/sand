@@ -205,26 +205,35 @@
   (let [data-path (fs/path dot-sand-dir "sand.json")
         shell-nix-path (fs/path dot-sand-dir "shell.nix")
         gitignore-path (fs/path dot-sand-dir ".gitignore")
-        existing-data (try
-                        (with-open [rdr (-> data-path fs/file io/reader)]
-                          (json/read rdr))
-                        (catch Exception _ nil))
-        data (generate-sand-json existing-data opts)]
-    (when (not= existing-data data)
-      (u/write-atomically! data-path
-        (fn [^java.io.Writer w]
-          (json/write data w :indent true)
-          (.write w "\n"))))
+        read-data #(try
+                     (with-open [rdr (-> data-path fs/file io/reader)]
+                       (json/read rdr))
+                     (catch Exception _ nil))
+        existing-data (read-data)]
+    (when (not= existing-data (generate-sand-json existing-data opts))
+      ; Another process may be adding different packages at the same time,
+      ; so re-read and update sand.json while holding a lock, so that
+      ; neither update is lost.
+      (u/with-file-lock (fs/path dot-sand-dir "sand.json.lock")
+        (fn []
+          (let [existing-data (read-data)
+                data (generate-sand-json existing-data opts)]
+            (when (not= existing-data data)
+              (u/write-atomically! data-path
+                (fn [^java.io.Writer w]
+                  (json/write data w :indent true)
+                  (.write w "\n"))))))))
     (when-not (fs/exists? shell-nix-path)
       (let [source (-> "SAND_DATA_DIR" System/getenv (fs/path "shell.nix"))]
         (u/write-atomically! shell-nix-path
           (fn [^java.io.Writer w]
             (.write w ^String (slurp (fs/file source)))))))
-    ; GC roots are specific to the machine
+    ; GC roots are specific to the machine, and the lock file is only
+    ; used while sand runs.
     (when-not (fs/exists? gitignore-path)
       (u/write-atomically! gitignore-path
         (fn [^java.io.Writer w]
-          (.write w "/gcroots/\n"))))
+          (.write w "/gcroots/\n/sand.json.lock\n"))))
     dot-sand-dir))
 
 (defmacro with-dot-sand-dir
