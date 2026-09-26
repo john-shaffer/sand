@@ -1,0 +1,23 @@
+name = "A formatter binary that isn't found exits with 127"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = """
+mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
+  && sed -i 's/^package = "taplo"$/package = "taplo"\\nbin-name = "no-such-taplo"/' data/formatters.toml \
+  && git init -q . && git add a.toml \
+  && { SAND_DATA_DIR="$PWD/data" sand format a.toml 2> err; test $? = 127; } \
+  && grep -qx "sand: no-such-taplo: command not found" err
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a=1
+"""
