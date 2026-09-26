@@ -1,0 +1,37 @@
+name = "Files with unusual names are formatted in a git repo"
+
+[setup.files."é.toml"]
+content = """
+a=1
+"""
+
+[setup.files."q\"uote.toml"]
+content = """
+b=2
+"""
+
+[setup.files."with space.toml"]
+content = """
+c=3
+"""
+
+[[steps]]
+run = "git init -q . && git add . && sand format ."
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."é.toml"]
+content = """
+a = 1
+"""
+
+[steps.expected.files."q\"uote.toml"]
+content = """
+b = 2
+"""
+
+[steps.expected.files."with space.toml"]
+content = """
+c = 3
+"""
