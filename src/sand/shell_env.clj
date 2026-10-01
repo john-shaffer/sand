@@ -16,7 +16,7 @@
    [clojure.string :as str]
    [sand.util :as u])
   (:import
-   (java.io File)
+   (java.io BufferedReader File)
    (java.nio.charset StandardCharsets)
    (java.nio.file Files LinkOption)
    (java.nio.file.attribute BasicFileAttributeView FileTime)
@@ -190,29 +190,46 @@
 
 (defn- capture!
   "Runs nix-shell to capture the environment of a shell with the given
-   shell.nix and sand.json contents. This is the only step that evaluates
-   nix. It runs in a temp dir, so that .sand/sand.json is only changed
-   after the evaluation has succeeded."
-  [shell-nix sand-json]
+   shell.nix and sand.json contents, and returns (f env) for the captured
+   env. This is the only step that evaluates nix. It runs in a temp dir, so
+   that .sand/sand.json is only changed after the evaluation has succeeded.
+
+   nix-shell keeps the shell's inputs from being garbage collected only
+   while it runs, so f is called before it exits. That lets f register a
+   GC root for them without a window where they could be collected."
+  [shell-nix sand-json f]
   (fs/with-temp-dir [tmp {:prefix "sand"}]
     (spit (fs/file tmp "shell.nix") shell-nix)
     (spit (fs/file tmp "sand.json") sand-json)
     (let [env-file (str (fs/path tmp "env"))
+          ready (str "sand-env-ready-" (random-uuid))
           ; Without NIX_BUILD_SHELL, nix-shell evaluates <nixpkgs> a second
           ; time just to find bashInteractive, which takes seconds.
           build-shell (or (not-empty (getenv "NIX_BUILD_SHELL"))
                         (not-empty (getenv "SAND_BASH"))
                         "bash")
+          ; The shell waits for sand to close its stdin before exiting.
           proc (p/start
                  {:env (assoc (nix-env) "NIX_BUILD_SHELL" build-shell)
-                  :err :inherit
-                  :out :inherit}
+                  :err :inherit}
                  "nix-shell" (str (fs/path tmp "shell.nix"))
-                 "--run" (str "env -0 > '" (str/replace env-file "'" "'\"'\"'") "'"))
-          exit @(p/exit-ref proc)]
-      (when-not (zero? exit)
-        (throw (u/user-error (str "nix-shell exited with code " exit) exit)))
-      (parse-env-0 (slurp env-file)))))
+                 "--run" (str "env -0 > " (u/shell-quote env-file)
+                           " && echo " ready " && read -r _"))
+          out (io/reader (p/stdout proc))
+          ; Passes on the shell's output until it says the env was written
+          ready? (loop []
+                   (when-let [line (.readLine ^BufferedReader out)]
+                     (or (= ready line)
+                       (do (println line) (recur)))))]
+      (try
+        (when-not ready?
+          (let [exit @(p/exit-ref proc)]
+            (throw (u/user-error (str "nix-shell exited with code " exit) exit))))
+        (f (parse-env-0 (slurp env-file)))
+        (finally
+          (.close (p/stdin proc))
+          (io/copy out *out*)
+          @(p/exit-ref proc))))))
 
 (def ^:private shared-root-max-age-ms
   "How long a root in the cache dir is kept after it was last used."
@@ -382,12 +399,14 @@
                     {:key key
                      :proc (start-rooting! roots-home key entry)
                      :roots roots})})
-      (let [captured (capture! shell-nix sand-json)
-            diff (env-diff outer captured)
-            _ (fs/create-dirs (roots-parent-dir roots-home))
-            entry (add-entry! {"diff" diff "version" cache-version}
-                    (store-paths captured diff)
-                    (root-path roots-home key))]
+      (let [[diff entry]
+            (capture! shell-nix sand-json
+              (fn [captured]
+                (let [diff (env-diff outer captured)]
+                  (fs/create-dirs (roots-parent-dir roots-home))
+                  [diff (add-entry! {"diff" diff "version" cache-version}
+                          (store-paths captured diff)
+                          (root-path roots-home key))])))]
         (link-entry! key entry)
         (prune-roots! roots key)
         {:env (apply-diff outer diff)}))))
