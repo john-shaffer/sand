@@ -1,0 +1,41 @@
+name = "Cache entries are GC roots only for runs outside a repo"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[setup.files."repo/b.toml"]
+content = """
+b=2
+"""
+
+[[steps]]
+run = """
+export SAND_CACHE_DIR="$(mktemp -d)" \
+  && sand format a.toml \
+  && find /nix/var/nix/gcroots/auto -lname "$SAND_CACHE_DIR/*" | grep -q .
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""
+
+[[steps]]
+run = """
+export SAND_CACHE_DIR="$(mktemp -d)" \
+  && cd repo && git init -q . && git add b.toml && sand format b.toml \
+  && ! find /nix/var/nix/gcroots/auto -lname "$SAND_CACHE_DIR/*" | grep -q .
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."repo/b.toml"]
+content = """
+b = 2
+"""

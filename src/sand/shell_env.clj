@@ -18,7 +18,8 @@
   (:import
    (java.io File)
    (java.nio.charset StandardCharsets)
-   (java.nio.file.attribute FileTime)
+   (java.nio.file Files LinkOption)
+   (java.nio.file.attribute BasicFileAttributeView FileTime)
    (java.security MessageDigest)))
 
 (set! *warn-on-reflection* true)
@@ -43,13 +44,14 @@
 (defn- home-path [& more]
   (apply fs/path (System/getProperty "user.home") more))
 
+(defn- cache-base-dir []
+  (or (not-empty (getenv "SAND_CACHE_DIR"))
+    (fs/path
+      (or (not-empty (getenv "XDG_CACHE_HOME")) (home-path ".cache"))
+      "sand")))
+
 (defn- cache-dir []
-  (fs/path
-    (or (not-empty (getenv "SAND_CACHE_DIR"))
-      (fs/path
-        (or (not-empty (getenv "XDG_CACHE_HOME")) (home-path ".cache"))
-        "sand"))
-    "shell-env"))
+  (fs/path (cache-base-dir) "shell-env"))
 
 (defn- sha256-hex [^String s]
   (let [digest (.digest (MessageDigest/getInstance "SHA-256")
@@ -212,48 +214,87 @@
         (throw (u/user-error (str "nix-shell exited with code " exit) exit)))
       (parse-env-0 (slurp env-file)))))
 
-(defn- roots-parent-dir [dot-sand-dir]
-  (fs/path dot-sand-dir "gcroots" "shell-env"))
+(def ^:private shared-root-max-age-ms
+  "How long a root in the cache dir is kept after it was last used."
+  (* 30 24 60 60 1000))
+
+(defn- roots-parent-dir [roots-home]
+  (fs/path roots-home "gcroots" "shell-env"))
 
 (defn- root-path
   "Returns the path of the GC root for the cache entry key. Each key gets
    its own root, so that concurrent runs never delete a root that another
    run is registering or relying on."
-  [dot-sand-dir key]
-  (fs/path (roots-parent-dir dot-sand-dir) (subs key 0 16)))
+  [roots-home key]
+  (fs/path (roots-parent-dir roots-home) (subs key 0 16)))
 
 (defn- rooted?
   "Returns true if the root for the cache entry key is registered."
-  [dot-sand-dir key]
-  (fs/exists? (root-path dot-sand-dir key)))
+  [roots-home key]
+  (fs/exists? (root-path roots-home key)))
 
 (defn- start-rooting!
   "Starts registering entry as the GC root for the cache entry key.
    Returns the process."
-  [dot-sand-dir key entry]
-  (fs/create-dirs (roots-parent-dir dot-sand-dir))
+  [roots-home key entry]
+  (fs/create-dirs (roots-parent-dir roots-home))
   (p/start
     {:err :inherit :out :discard}
-    "nix-store" "--realise" "--add-root" (str (root-path dot-sand-dir key))
+    "nix-store" "--realise" "--add-root" (str (root-path roots-home key))
     entry))
+
+(defn- delete-quietly!
+  "Deletes path. Errors are ignored, since a concurrent run may be
+   deleting the same files."
+  [path]
+  (try
+    (if (fs/directory? path {:nofollow-links true})
+      (fs/delete-tree path)
+      (fs/delete-if-exists path))
+    (catch Exception _ nil)))
 
 (defn- delete-other-roots!
   "Deletes GC roots other than the one for the cache entry key, including
-   those from older versions of sand. Errors are ignored, since a
-   concurrent run may be deleting the same files."
-  [dot-sand-dir key]
-  (let [keep-path (root-path dot-sand-dir key)
-        parent (roots-parent-dir dot-sand-dir)]
+   those from older versions of sand."
+  [roots-home key]
+  (let [keep-path (root-path roots-home key)]
     (doseq [path (concat
                    ; Older versions of sand rooted the shell's inputDerivation here.
-                   [(fs/path dot-sand-dir "gcroots" "shell")]
-                   (try (fs/list-dir parent) (catch Exception _ nil)))
+                   [(fs/path roots-home "gcroots" "shell")]
+                   (try (fs/list-dir (roots-parent-dir roots-home)) (catch Exception _ nil)))
             :when (not= keep-path path)]
-      (try
-        (if (fs/directory? path {:nofollow-links true})
-          (fs/delete-tree path)
-          (fs/delete-if-exists path))
-        (catch Exception _ nil)))))
+      (delete-quietly! path))))
+
+(defn- touch-root!
+  "Marks the root for the cache entry key as used now."
+  [roots-home key]
+  (try
+    (.setTimes (Files/getFileAttributeView (root-path roots-home key)
+                 BasicFileAttributeView
+                 (into-array LinkOption [LinkOption/NOFOLLOW_LINKS]))
+      (FileTime/fromMillis (System/currentTimeMillis)) nil nil)
+    (catch Exception _ nil)))
+
+(defn- delete-expired-roots!
+  "Deletes GC roots that weren't used within shared-root-max-age-ms."
+  [roots-home]
+  (let [cutoff (- (System/currentTimeMillis) shared-root-max-age-ms)]
+    (doseq [path (try (fs/list-dir (roots-parent-dir roots-home)) (catch Exception _ nil))
+            :when (try
+                    (< (.toMillis ^FileTime (fs/last-modified-time path {:nofollow-links true}))
+                      cutoff)
+                    (catch Exception _ false))]
+      (delete-quietly! path))))
+
+(defn- prune-roots!
+  "Deletes roots that are no longer needed after the root for the cache
+   entry key was registered. A repo only needs the root for its current
+   shell, but the cache dir's roots are shared by every run outside a repo,
+   so they are kept until they go unused."
+  [{:keys [roots-home shared?]} key]
+  (if shared?
+    (delete-expired-roots! roots-home)
+    (delete-other-roots! roots-home key)))
 
 (def ^:private entry-expr
   "Writes the cache entry to the store with the store paths that it uses
@@ -320,41 +361,44 @@
    the variables to set on top of the current environment. sand-json may
    differ from the sand.json in dot-sand-dir, which is left unchanged.
 
-   Evaluates nix only if there is no valid cache entry. When root? is true,
-   the cache entry, which references the shell's inputs, is registered as
-   a GC root in dot-sand-dir if it isn't already. For an existing entry,
-   that runs in the background: call `finish!` on the result to wait for
-   it."
-  [dot-sand-dir sand-json {:keys [root?]}]
+   Evaluates nix only if there is no valid cache entry. The cache entry,
+   which references the shell's inputs, is registered as a GC root in
+   dot-sand-dir, or in the cache dir when temp? is true, since a temporary
+   dot-sand-dir is deleted after the run. For an existing entry, that runs
+   in the background: call `finish!` on the result to wait for it."
+  [dot-sand-dir sand-json {:keys [temp?]}]
   (let [shell-nix (slurp (fs/file dot-sand-dir "shell.nix"))
         key (cache-key shell-nix sand-json)
-        outer (into {} (System/getenv))]
+        outer (into {} (System/getenv))
+        roots {:roots-home (if temp? (cache-base-dir) dot-sand-dir)
+               :shared? temp?}
+        roots-home (:roots-home roots)]
     (if-let [[entry {:strs [diff]}] (read-cache key)]
-      {:env (apply-diff outer diff)
-       :rooting (when (and root? (not (rooted? dot-sand-dir key)))
-                  {:dot-sand-dir dot-sand-dir
-                   :key key
-                   :proc (start-rooting! dot-sand-dir key entry)})}
+      (let [rooted (rooted? roots-home key)]
+        (when (and rooted temp?)
+          (touch-root! roots-home key))
+        {:env (apply-diff outer diff)
+         :rooting (when-not rooted
+                    {:key key
+                     :proc (start-rooting! roots-home key entry)
+                     :roots roots})})
       (let [captured (capture! shell-nix sand-json)
             diff (env-diff outer captured)
-            root (when root?
-                   (fs/create-dirs (roots-parent-dir dot-sand-dir))
-                   (root-path dot-sand-dir key))
+            _ (fs/create-dirs (roots-parent-dir roots-home))
             entry (add-entry! {"diff" diff "version" cache-version}
                     (store-paths captured diff)
-                    root)]
+                    (root-path roots-home key))]
         (link-entry! key entry)
-        (when root?
-          (delete-other-roots! dot-sand-dir key))
+        (prune-roots! roots key)
         {:env (apply-diff outer diff)}))))
 
 (defn finish!
   "Waits for any background work started by shell-env!."
   [{:keys [rooting]}]
-  (when-let [{:keys [dot-sand-dir key proc]} rooting]
+  (when-let [{:keys [key proc roots]} rooting]
     (let [exit @(p/exit-ref proc)]
       (if (zero? exit)
-        (delete-other-roots! dot-sand-dir key)
+        (prune-roots! roots key)
         (binding [*out* *err*]
           (println "sand: warning: failed to register GC roots, exit code" exit))))))
 

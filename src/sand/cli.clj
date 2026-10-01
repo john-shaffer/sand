@@ -182,7 +182,7 @@
   (let [sand-json (-> (core/read-sand-json dot-sand-dir)
                     (core/generate-sand-json sand-json-opts)
                     core/sand-json-str)
-        result (shell-env/shell-env! dot-sand-dir sand-json {:root? (not temp?)})]
+        result (shell-env/shell-env! dot-sand-dir sand-json {:temp? temp?})]
     (core/update-sand-json! dot-sand-dir sand-json-opts)
     result))
 
