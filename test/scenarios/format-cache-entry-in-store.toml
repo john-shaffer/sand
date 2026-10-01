@@ -1,0 +1,24 @@
+name = "Cache entries are store paths that reference the shell's inputs"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = """
+export SAND_CACHE_DIR="$(mktemp -d)" \
+  && git init -q . && git add a.toml && sand format a.toml \
+  && entry="$(readlink "$SAND_CACHE_DIR"/shell-env/*)" \
+  && case "$entry" in /nix/store/*) ;; *) exit 1 ;; esac \
+  && nix-store -q --references "$entry" | grep -q . \
+  && test "$(readlink .sand/gcroots/shell-env/*)" = "$entry"
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""

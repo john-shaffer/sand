@@ -4,8 +4,10 @@
 
    Evaluating nixpkgs takes seconds, while everything else sand does takes
    milliseconds, so the cache is what makes sand fast. The cache is keyed by
-   everything that affects the evaluation that sand can cheaply observe, and
-   an entry is only used while all of the store paths it references exist."
+   everything that affects the evaluation that sand can cheaply observe.
+   Each entry is a file in the store that references the shell's inputs,
+   linked to from the cache dir, so nix keeps an entry exactly as long as
+   it keeps the paths the entry needs."
   (:require
    [babashka.fs :as fs]
    [clojure.data.json :as json]
@@ -22,7 +24,7 @@
 (set! *warn-on-reflection* true)
 
 ; Bump when the cache format or the meaning of its contents changes.
-(def ^:private ^:const cache-version "1")
+(def ^:private ^:const cache-version "2")
 
 (def ^:private excluded-vars
   "Variables that nix-shell sets which are specific to its process, such as
@@ -213,66 +215,104 @@
 (defn- roots-parent-dir [dot-sand-dir]
   (fs/path dot-sand-dir "gcroots" "shell-env"))
 
-(defn- roots-dir
-  "Returns the dir holding the GC roots for the cache entry key. Each key
-   gets its own dir, so that concurrent runs never delete roots that
-   another run is registering or relying on."
+(defn- root-path
+  "Returns the path of the GC root for the cache entry key. Each key gets
+   its own root, so that concurrent runs never delete a root that another
+   run is registering or relying on."
   [dot-sand-dir key]
   (fs/path (roots-parent-dir dot-sand-dir) (subs key 0 16)))
 
 (defn- rooted?
-  "Returns true if the roots for the cache entry key are registered."
+  "Returns true if the root for the cache entry key is registered."
   [dot-sand-dir key]
-  (fs/exists? (fs/path (roots-dir dot-sand-dir key) "done")))
+  (fs/exists? (root-path dot-sand-dir key)))
 
 (defn- start-rooting!
-  "Starts registering paths as GC roots for the cache entry key.
+  "Starts registering entry as the GC root for the cache entry key.
    Returns the process."
-  [dot-sand-dir key paths]
-  (let [dir (roots-dir dot-sand-dir key)]
-    (fs/create-dirs dir)
-    (apply p/start
-      {:err :inherit :out :discard}
-      "nix-store" "--realise" "--add-root" (str (fs/path dir "root"))
-      paths)))
+  [dot-sand-dir key entry]
+  (fs/create-dirs (roots-parent-dir dot-sand-dir))
+  (p/start
+    {:err :inherit :out :discard}
+    "nix-store" "--realise" "--add-root" (str (root-path dot-sand-dir key))
+    entry))
 
 (defn- delete-other-roots!
-  "Deletes GC roots other than those for the cache entry key, including
+  "Deletes GC roots other than the one for the cache entry key, including
    those from older versions of sand. Errors are ignored, since a
    concurrent run may be deleting the same files."
   [dot-sand-dir key]
-  (let [keep-dir (roots-dir dot-sand-dir key)
+  (let [keep-path (root-path dot-sand-dir key)
         parent (roots-parent-dir dot-sand-dir)]
     (doseq [path (concat
                    ; Older versions of sand rooted the shell's inputDerivation here.
                    [(fs/path dot-sand-dir "gcroots" "shell")]
                    (try (fs/list-dir parent) (catch Exception _ nil)))
-            :when (not= keep-dir path)]
+            :when (not= keep-path path)]
       (try
         (if (fs/directory? path {:nofollow-links true})
           (fs/delete-tree path)
           (fs/delete-if-exists path))
         (catch Exception _ nil)))))
 
-(defn- write-cache! [key m]
-  (let [dir (cache-dir)]
+(def ^:private entry-expr
+  "Writes the cache entry to the store with the store paths that it uses
+   as references, so that rooting the entry keeps them alive, and garbage
+   collecting it lets them be collected."
+  "let
+     a = builtins.fromJSON (builtins.readFile (builtins.getEnv \"SAND_ENTRY_FILE\"));
+   in builtins.toFile \"sand-shell-env.json\" (builtins.appendContext a.json
+     (builtins.listToAttrs (map (p: { name = p; value = { path = true; }; }) a.paths)))")
+
+(defn- add-entry!
+  "Adds the cache entry m to the store, referencing paths, and returns its
+   store path. When root is given, the entry is registered as a GC root
+   there by the same nix process, so that it is never unrooted."
+  [m paths root]
+  (fs/with-temp-dir [tmp {:prefix "sand"}]
+    (let [f (fs/path tmp "entry.json")
+          _ (spit (fs/file f) (json/write-str {"json" (json/write-str m) "paths" paths}))
+          proc (apply p/start
+                 {:env (assoc (nix-env) "SAND_ENTRY_FILE" (str f))
+                  :err :inherit}
+                 "nix" "--extra-experimental-features" "nix-command"
+                 "build" "--impure" "--print-out-paths" "--expr" entry-expr
+                 (if root
+                   ["--out-link" (str root)]
+                   ["--no-link"]))
+          ; stderr is inherited, so reading stdout to the end can't block on it
+          out (slurp (p/stdout proc))
+          exit @(p/exit-ref proc)]
+      (when-not (zero? exit)
+        (throw (u/user-error (str "nix build exited with code " exit) exit)))
+      (str/trim out))))
+
+(defn- link-entry!
+  "Points the cache's link for key at entry, replacing it atomically."
+  [key entry]
+  (let [dir (cache-dir)
+        tmp (fs/path dir (str key "." (random-uuid) ".tmp"))]
     (fs/create-dirs dir)
-    (u/write-atomically! (fs/path dir (str key ".json"))
-      #(json/write m %))))
+    (fs/create-sym-link tmp entry)
+    (try
+      (fs/move tmp (fs/path dir key) {:atomic-move true :replace-existing true})
+      (finally
+        (fs/delete-if-exists tmp)))))
 
 (defn- read-cache
-  "Returns the cache entry for key, or nil if it is missing or references
-   store paths that no longer exist."
+  "Returns [entry m] for the cache entry for key, where entry is its store
+   path and m its contents, or nil if it is missing or was garbage
+   collected."
   [key]
-  (let [^File f (fs/file (cache-dir) (str key ".json"))]
-    (when (.exists f)
-      (let [m (try
-                (with-open [rdr (io/reader f)]
+  (let [link (fs/path (cache-dir) key)]
+    (when (fs/exists? link)
+      (let [entry (str (fs/read-link link))
+            m (try
+                (with-open [rdr (io/reader (fs/file entry))]
                   (json/read rdr))
                 (catch Exception _ nil))]
-        (when (and (= cache-version (get m "version"))
-                (every? fs/exists? (get m "paths")))
-          m)))))
+        (when (= cache-version (get m "version"))
+          [entry m])))))
 
 (defn shell-env!
   "Returns the environment of a shell for dot-sand-dir's shell.nix with
@@ -281,26 +321,32 @@
    differ from the sand.json in dot-sand-dir, which is left unchanged.
 
    Evaluates nix only if there is no valid cache entry. When root? is true,
-   the shell's inputs are registered as GC roots in dot-sand-dir if they
-   aren't already. That runs in the background: call `finish!` on the
-   result to wait for it."
+   the cache entry, which references the shell's inputs, is registered as
+   a GC root in dot-sand-dir if it isn't already. For an existing entry,
+   that runs in the background: call `finish!` on the result to wait for
+   it."
   [dot-sand-dir sand-json {:keys [root?]}]
   (let [shell-nix (slurp (fs/file dot-sand-dir "shell.nix"))
         key (cache-key shell-nix sand-json)
-        outer (into {} (System/getenv))
-        {:strs [diff paths]} (or (read-cache key)
-                               (let [captured (capture! shell-nix sand-json)
-                                     diff (env-diff outer captured)
-                                     m {"diff" diff
-                                        "paths" (store-paths captured diff)
-                                        "version" cache-version}]
-                                 (write-cache! key m)
-                                 m))]
-    {:env (apply-diff outer diff)
-     :rooting (when (and root? (seq paths) (not (rooted? dot-sand-dir key)))
-                {:dot-sand-dir dot-sand-dir
-                 :key key
-                 :proc (start-rooting! dot-sand-dir key paths)})}))
+        outer (into {} (System/getenv))]
+    (if-let [[entry {:strs [diff]}] (read-cache key)]
+      {:env (apply-diff outer diff)
+       :rooting (when (and root? (not (rooted? dot-sand-dir key)))
+                  {:dot-sand-dir dot-sand-dir
+                   :key key
+                   :proc (start-rooting! dot-sand-dir key entry)})}
+      (let [captured (capture! shell-nix sand-json)
+            diff (env-diff outer captured)
+            root (when root?
+                   (fs/create-dirs (roots-parent-dir dot-sand-dir))
+                   (root-path dot-sand-dir key))
+            entry (add-entry! {"diff" diff "version" cache-version}
+                    (store-paths captured diff)
+                    root)]
+        (link-entry! key entry)
+        (when root?
+          (delete-other-roots! dot-sand-dir key))
+        {:env (apply-diff outer diff)}))))
 
 (defn finish!
   "Waits for any background work started by shell-env!."
@@ -308,12 +354,7 @@
   (when-let [{:keys [dot-sand-dir key proc]} rooting]
     (let [exit @(p/exit-ref proc)]
       (if (zero? exit)
-        (try
-          (spit (fs/file (roots-dir dot-sand-dir key) "done") "")
-          (delete-other-roots! dot-sand-dir key)
-          (catch Exception e
-            (binding [*out* *err*]
-              (println "sand: warning: failed to record GC roots:" (ex-message e)))))
+        (delete-other-roots! dot-sand-dir key)
         (binding [*out* *err*]
           (println "sand: warning: failed to register GC roots, exit code" exit))))))
 
