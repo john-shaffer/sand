@@ -49,7 +49,7 @@ run *args:
     #!/usr/bin/env bash
     SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" clojure -M -m sand.cli {{ args }}
 
-# Run tests against the built binary
+# Run tests against the built binary (all scenarios, or the given ones)
 test *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -58,9 +58,9 @@ test *args:
     trap 'rm -rf "$SAND_CACHE_DIR"' EXIT
     # For scenarios that need a modified copy of sand's data files
     export SAND_SOURCE_DATA_DIR="$(realpath ./data/sand)"
-    PATH="$(nix build . --print-out-paths)/bin:$PATH" tact test {{ args }}
+    PATH="$(nix build . --print-out-paths)/bin:$PATH" tact {{ if args == "" { "test" } else { args } }}
 
-# Run tests against the jar app, for development
+# Run tests against the jar app, for development (all scenarios, or the given ones)
 test-jar *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -69,7 +69,7 @@ test-jar *args:
     trap 'rm -rf "$SAND_CACHE_DIR"' EXIT
     # For scenarios that need a modified copy of sand's data files
     export SAND_SOURCE_DATA_DIR="$(realpath ./data/sand)"
-    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" tact test {{ args }}
+    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" tact {{ if args == "" { "test" } else { args } }}
 
 # Update dependencies
 update: && update-deps-lock format
