@@ -1,0 +1,53 @@
+name = "A symlinked .sand/gcroots dir doesn't let sand change files outside the repo"
+
+[setup.files."victim/keep"]
+content = """
+keep
+"""
+
+[setup.files."victim/sub/keep"]
+content = """
+keep
+"""
+
+[setup.files."repo/a.toml"]
+content = """
+a=1
+"""
+
+# A cloned repo controls what's committed in .sand, including symlinks.
+# sand must refuse to use them, without deleting or writing anything
+# through them.
+[[steps]]
+run = """
+cd repo && git init -q . \
+  && mkdir -p .sand/gcroots && ln -s ../../../victim .sand/gcroots/shell-env \
+  && git add a.toml .sand/gcroots/shell-env \
+  && { sand format a.toml 2> err; test $? = 1; } \
+  && grep -q "sand: refusing to use .*shell-env, which is a symlink" err \
+  && test "$(ls -A ../victim)" = "$(printf 'keep\\nsub')"
+"""
+
+[steps.expected]
+exit-code = 0
+
+[[steps]]
+run = """
+cd repo && rm -rf .sand/gcroots && ln -s ../../victim .sand/gcroots \
+  && { sand format a.toml 2> err; test $? = 1; } \
+  && grep -q "sand: refusing to use .*gcroots, which is a symlink" err \
+  && test "$(ls -A ../victim)" = "$(printf 'keep\\nsub')"
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."victim/keep"]
+content = """
+keep
+"""
+
+[steps.expected.files."victim/sub/keep"]
+content = """
+keep
+"""

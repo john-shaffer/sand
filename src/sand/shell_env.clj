@@ -238,6 +238,15 @@
 (defn- roots-parent-dir [roots-home]
   (fs/path roots-home "gcroots" "shell-env"))
 
+(defn- check-roots-dirs!
+  "Throws if a dir that GC roots are created and deleted in is a symlink.
+   A repo's .sand dir comes from the repo, so a committed symlink there
+   could otherwise make sand delete or write files outside of it."
+  [roots-home]
+  (doseq [path [(fs/path roots-home "gcroots") (roots-parent-dir roots-home)]]
+    (when (fs/sym-link? path)
+      (throw (u/user-error (str "refusing to use " path ", which is a symlink") 1)))))
+
 (defn- root-path
   "Returns the path of the GC root for the cache entry key. Each key gets
    its own root, so that concurrent runs never delete a root that another
@@ -390,6 +399,7 @@
         roots {:roots-home (if temp? (cache-base-dir) dot-sand-dir)
                :shared? temp?}
         roots-home (:roots-home roots)]
+    (check-roots-dirs! roots-home)
     (if-let [[entry {:strs [diff]}] (read-cache key)]
       (let [rooted (rooted? roots-home key)]
         (when (and rooted temp?)
