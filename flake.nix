@@ -12,10 +12,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:john-shaffer/finefile";
     };
-    flake-utils.url = "github:numtide/flake-utils";
     tact = {
       inputs.clj-nix.follows = "clj-nix";
-      inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:john-shaffer/tact";
     };
@@ -23,123 +21,134 @@
   outputs =
     inputs:
     with inputs;
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      with import nixpkgs {
-        inherit system;
-        overlays = [ clj-nix.overlays.default ];
-      };
-      let
-        version = "0.1.0";
-        jdkPackage = pkgs.graalvmPackages.graalvm-ce;
-        lockfile = lib.sources.sourceByRegex self [ "^deps-lock.json$" ];
-        sandSrc = lib.sources.sourceFilesBySuffices self [
-          ".clj"
-          ".edn"
-        ];
-        sandData = lib.sources.sourceFilesBySuffices self [
-          ".json"
-          ".nix"
-          ".toml"
-        ];
-        sandBin = clj-nix.lib.mkCljApp {
-          pkgs = nixpkgs.legacyPackages.${system};
-          modules = [
-            {
-              jdk = jdkPackage;
-              lockfile = lockfile + /deps-lock.json;
-              main-ns = "sand.cli";
-              name = "sand";
-              nativeImage.enable = true;
-              projectSrc = sandSrc;
-              version = version;
-            }
-          ];
+    let
+      systems = [
+        "aarch64-darwin"
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
+      outputsBySystem = nixpkgs.lib.genAttrs systems (
+        system:
+        with import nixpkgs {
+          inherit system;
+          overlays = [ clj-nix.overlays.default ];
         };
-        sandJarApp = clj-nix.lib.mkCljApp {
-          pkgs = nixpkgs.legacyPackages.${system};
-          modules = [
-            {
-              jdk = jdkPackage;
-              lockfile = lockfile + /deps-lock.json;
-              main-ns = "sand.cli";
-              name = "sand";
-              projectSrc = sandSrc;
-              version = version;
-            }
+        let
+          version = "0.1.0";
+          jdkPackage = pkgs.graalvmPackages.graalvm-ce;
+          lockfile = lib.sources.sourceByRegex self [ "^deps-lock.json$" ];
+          sandSrc = lib.sources.sourceFilesBySuffices self [
+            ".clj"
+            ".edn"
           ];
-        };
-        # Formatted as a nix expression for the shell.nix template
-        sandNixpkgs = ''
-          {
-              owner = "nixos";
-              repo = "nixpkgs";
-              rev = "${nixpkgs.rev}";
-              narHash = "${nixpkgs.narHash}";
-            }'';
-        # The data dir that SAND_DATA_DIR points to
-        sandDataDir = runCommand "sand-data" { } ''
-          mkdir -p $out/share
-          cp -r ${sandData}/data/sand $out/share
-          chmod u+w $out/share/sand $out/share/sand/shell.nix
-          substituteInPlace $out/share/sand/shell.nix \
-            --replace-fail "sandNixpkgs = null;" ${lib.escapeShellArg "sandNixpkgs = ${sandNixpkgs};"}
-          cp ${sandData}/schema/sand.toml.latest.schema.json $out/share/sand
-        '';
-        sandUnwrapped = stdenv.mkDerivation {
-          inherit (sandBin) meta name version;
-          phases = [ "installPhase" ];
-          installPhase = ''
-            mkdir -p $out/bin $out/share
-            cp ${sandBin}/bin/sand $out/bin/sand
-            cp -r ${sandDataDir}/share/sand $out/share
+          sandData = lib.sources.sourceFilesBySuffices self [
+            ".json"
+            ".nix"
+            ".toml"
+          ];
+          sandBin = clj-nix.lib.mkCljApp {
+            pkgs = nixpkgs.legacyPackages.${system};
+            modules = [
+              {
+                jdk = jdkPackage;
+                lockfile = lockfile + /deps-lock.json;
+                main-ns = "sand.cli";
+                name = "sand";
+                nativeImage.enable = true;
+                projectSrc = sandSrc;
+                version = version;
+              }
+            ];
+          };
+          sandJarApp = clj-nix.lib.mkCljApp {
+            pkgs = nixpkgs.legacyPackages.${system};
+            modules = [
+              {
+                jdk = jdkPackage;
+                lockfile = lockfile + /deps-lock.json;
+                main-ns = "sand.cli";
+                name = "sand";
+                projectSrc = sandSrc;
+                version = version;
+              }
+            ];
+          };
+          # Formatted as a nix expression for the shell.nix template
+          sandNixpkgs = ''
+            {
+                owner = "nixos";
+                repo = "nixpkgs";
+                rev = "${nixpkgs.rev}";
+                narHash = "${nixpkgs.narHash}";
+              }'';
+          # The data dir that SAND_DATA_DIR points to
+          sandDataDir = runCommand "sand-data" { } ''
+            mkdir -p $out/share
+            cp -r ${sandData}/data/sand $out/share
+            chmod u+w $out/share/sand $out/share/sand/shell.nix
+            substituteInPlace $out/share/sand/shell.nix \
+              --replace-fail "sandNixpkgs = null;" ${lib.escapeShellArg "sandNixpkgs = ${sandNixpkgs};"}
+            cp ${sandData}/schema/sand.toml.latest.schema.json $out/share/sand
           '';
-        };
-        runtimePaths = [
-          pkgs.git
-          pkgs.taplo
-        ];
-        sandWrapped =
-          runCommand sandUnwrapped.name
-            {
-              inherit (sandUnwrapped) meta name version;
-
-              nativeBuildInputs = [ makeBinaryWrapper ];
-            }
-            ''
-              mkdir -p $out/bin
-              makeBinaryWrapper ${sandUnwrapped}/bin/sand $out/bin/sand \
-                --prefix PATH : ${lib.makeBinPath runtimePaths} \
-                --set-default SAND_BASH ${pkgs.bash}/bin/bash \
-                --set-default SAND_DATA_DIR ${sandUnwrapped}/share/sand \
-                --set-default SAND_SCHEMA ${sandUnwrapped}/share/sand/sand.toml.latest.schema.json
+          sandUnwrapped = stdenv.mkDerivation {
+            inherit (sandBin) meta name version;
+            phases = [ "installPhase" ];
+            installPhase = ''
+              mkdir -p $out/bin $out/share
+              cp ${sandBin}/bin/sand $out/bin/sand
+              cp -r ${sandDataDir}/share/sand $out/share
             '';
-      in
-      {
-        devShells.default = pkgs.mkShell {
-          buildInputs =
-            with pkgs;
-            [
-              clojure
-              deps-lock
-              finefile.packages.${system}.default
-              just
-              inputs.tact.packages.${system}.default
-            ]
-            ++ runtimePaths;
-          shellHook = ''
-            echo
-            echo -e "Run '\033[1mjust <recipe>\033[0m' to get started"
-            just --list
-          '';
-        };
-        packages = {
-          default = sandWrapped;
-          sand = sandWrapped;
-          sand-data = sandDataDir;
-          sand-jar-app = sandJarApp;
-          sand-unwrapped = sandUnwrapped;
-        };
-      }
-    );
+          };
+          runtimePaths = [
+            pkgs.git
+            pkgs.taplo
+          ];
+          sandWrapped =
+            runCommand sandUnwrapped.name
+              {
+                inherit (sandUnwrapped) meta name version;
+
+                nativeBuildInputs = [ makeBinaryWrapper ];
+              }
+              ''
+                mkdir -p $out/bin
+                makeBinaryWrapper ${sandUnwrapped}/bin/sand $out/bin/sand \
+                  --prefix PATH : ${lib.makeBinPath runtimePaths} \
+                  --set-default SAND_BASH ${pkgs.bash}/bin/bash \
+                  --set-default SAND_DATA_DIR ${sandUnwrapped}/share/sand \
+                  --set-default SAND_SCHEMA ${sandUnwrapped}/share/sand/sand.toml.latest.schema.json
+              '';
+        in
+        {
+          devShells.default = pkgs.mkShell {
+            buildInputs =
+              with pkgs;
+              [
+                clojure
+                deps-lock
+                finefile.packages.${system}.default
+                just
+                inputs.tact.packages.${system}.default
+              ]
+              ++ runtimePaths;
+            shellHook = ''
+              echo
+              echo -e "Run '\033[1mjust <recipe>\033[0m' to get started"
+              just --list
+            '';
+          };
+          packages = {
+            default = sandWrapped;
+            sand = sandWrapped;
+            sand-data = sandDataDir;
+            sand-jar-app = sandJarApp;
+            sand-unwrapped = sandUnwrapped;
+          };
+        }
+      );
+    in
+    {
+      devShells = builtins.mapAttrs (_: outputs: outputs.devShells) outputsBySystem;
+      packages = builtins.mapAttrs (_: outputs: outputs.packages) outputsBySystem;
+    };
 }

@@ -200,7 +200,6 @@
       "inputs": {
         "clj-nix": "clj-nix",
         "finefile": "finefile",
-        "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
         "tact": "tact"
       }
@@ -225,9 +224,7 @@
         "clj-nix": [
           "clj-nix"
         ],
-        "flake-utils": [
-          "flake-utils"
-        ],
+        "flake-utils": "flake-utils",
         "nixpkgs": [
           "nixpkgs"
         ]
