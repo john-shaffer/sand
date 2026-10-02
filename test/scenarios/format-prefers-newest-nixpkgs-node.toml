@@ -1,0 +1,55 @@
+name = "Without a root nixpkgs input, the newest nixpkgs node is used"
+
+# Neither node is the root's nixpkgs input. The older one's rev doesn't
+# exist, so formatting fails if sand picks it.
+[setup.files."flake.lock"]
+content = """
+{
+  "nodes": {
+    "nixpkgs-new": {
+      "locked": {
+        "lastModified": 1790218706,
+        "narHash": "sha256-6e4Na3z008XpdVyOXgfasXIn1aN+z8AXFG+jXdQSyuI=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "c508844df6c28fa6dabc1b6af70f3ccbd65c5201",
+        "type": "github"
+      }
+    },
+    "nixpkgs-old": {
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "0000000000000000000000000000000000000000",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs-new": "nixpkgs-new",
+        "nixpkgs-old": "nixpkgs-old"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
+"""
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = "git init -q . && git add . && sand format a.toml && grep -q c508844df6c28fa6dabc1b6af70f3ccbd65c5201 .sand/sand.json"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""

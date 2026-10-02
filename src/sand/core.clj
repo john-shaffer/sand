@@ -111,8 +111,9 @@
             (and (= "github" (get locked "type"))
               (= "nixpkgs" (some-> (get locked "repo") str/lower-case))
               (= "nixos" (some-> (get locked "owner") str/lower-case)))))
+        (map val)
         (sort-by #(get-in % ["locked" "lastModified"]))
-        last second))))
+        last))))
 
 (defn find-flake-nixpkgs
   "Finds a nixpkgs input for the flake for the given dir. The search
