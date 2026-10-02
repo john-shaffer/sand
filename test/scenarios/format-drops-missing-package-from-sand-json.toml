@@ -1,0 +1,28 @@
+name = "A package in sand.json that is no longer in nixpkgs is dropped with a warning"
+
+[setup.files.".sand/sand.json"]
+content = """
+{"shellPkgs": ["no-such-package-xyz"]}
+"""
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = """
+git init -q . && git add a.toml \
+  && sand format a.toml 2> err \
+  && grep -q "sand: warning: package 'no-such-package-xyz' isn't in" err \
+  && ! grep -q no-such-package .sand/sand.json \
+  && grep -q taplo .sand/sand.json
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""

@@ -201,15 +201,19 @@
       candidates)))
 
 (defn generate-sand-json
-  "Generates a sand.json file. `existing` may be nil or pre-existing data."
-  [existing {:keys [nixpkgs-input packages]}]
+  "Generates a sand.json file. `existing` may be nil or pre-existing data.
+   `missing-packages` are removed from the existing packages, and not
+   added from `packages`."
+  [existing {:keys [missing-packages nixpkgs-input packages]}]
   (cond-> (or existing {})
     nixpkgs-input (assoc "nixpkgs" nixpkgs-input)
-    (seq packages) (assoc "shellPkgs"
-                     (->> packages
-                       (remove empty?)
-                       (into (set (get existing "shellPkgs")))
-                       sort))))
+    (or (seq packages) (seq missing-packages))
+    (assoc "shellPkgs"
+      (->> packages
+        (remove empty?)
+        (into (set (get existing "shellPkgs")))
+        (remove (set missing-packages))
+        sort))))
 
 (defn- canonicalize-json
   "Sorts the keys of all maps in x, so that it serializes the same way

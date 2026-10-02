@@ -40,15 +40,26 @@ let
       throw "sand: no nixpkgs found. Add a nixpkgs input to the flake.lock in this repo, or add nixpkgs to NIX_PATH.";
   pkgs' = if pkgs != null then pkgs else import nixpkgsSource.path { };
   pkgsDescription = if pkgs != null then "the given pkgs" else nixpkgsSource.description;
-  # A package can disappear when nixpkgs is updated, so give a clearer
-  # error than nix's missing attribute error.
-  getPkg =
-    name:
-    if pkgs' ? ${name} then
-      pkgs'.${name}
-    else
-      throw "sand: package '${name}' isn't in ${pkgsDescription}";
+  # A package can disappear when nixpkgs is updated. Renamed packages
+  # become aliases that throw, which tryEval catches.
+  hasPkg = name: pkgs' ? ${name} && (builtins.tryEval pkgs'.${name}).success;
+  shellPkgs = builtins.partition hasPkg (data.shellPkgs or [ ]);
 in
-pkgs'.mkShell {
-  buildInputs = (if data ? shellPkgs then map getPkg data.shellPkgs else [ ]);
-}
+pkgs'.mkShell (
+  {
+    buildInputs = map (name: pkgs'.${name}) shellPkgs.right;
+  }
+  # sand reads this to warn about the missing packages and skip what
+  # needs them.
+  // (
+    if shellPkgs.wrong == [ ] then
+      { }
+    else
+      {
+        SAND_MISSING_PKGS = builtins.toJSON {
+          nixpkgs = pkgsDescription;
+          packages = shellPkgs.wrong;
+        };
+      }
+  )
+)

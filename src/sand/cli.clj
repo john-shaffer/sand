@@ -2,6 +2,7 @@
   (:require
    [babashka.cli :as cli]
    [babashka.fs :as fs]
+   [clojure.data.json :as json]
    [clojure.java.io :as io]
    [clojure.java.process :as p]
    [clojure.string :as str]
@@ -172,18 +173,35 @@
           (io/copy config-str stdin)))
       (exit @(p/exit-ref p)))))
 
+(defn- warn-missing-packages
+  "Warns about the packages that the shell couldn't find, and returns
+   shell-env with them as :missing-packages, and without the variable
+   that listed them in its :env."
+  [shell-env]
+  (let [{:strs [nixpkgs packages]} (some-> (get-in shell-env [:env "SAND_MISSING_PKGS"])
+                                     json/read-str)]
+    (binding [*out* *err*]
+      (doseq [package packages]
+        (println (str "sand: warning: package '" package "' isn't in " nixpkgs))))
+    (-> shell-env
+      (update :env dissoc "SAND_MISSING_PKGS")
+      (assoc :missing-packages (set packages)))))
+
 (defn- load-shell-env!
   "Returns the shell environment for dot-sand-dir, as returned by
    shell-env/shell-env!, with the packages and nixpkgs input in
-   sand-json-opts added. They are only saved to sand.json once the shell
-   has been evaluated successfully, so a package that doesn't exist or
-   fails to build doesn't break later runs."
+   sand-json-opts added. Packages that aren't in nixpkgs are left out of
+   the shell with a warning, and returned as :missing-packages. sand.json
+   is only updated once the shell has been evaluated successfully, and
+   without the missing packages, so they don't break later runs."
   [dot-sand-dir temp? sand-json-opts]
   (let [sand-json (-> (core/read-sand-json dot-sand-dir)
                     (core/generate-sand-json sand-json-opts)
                     core/sand-json-str)
-        result (shell-env/shell-env! dot-sand-dir sand-json {:temp? temp?})]
-    (core/update-sand-json! dot-sand-dir sand-json-opts)
+        result (-> (shell-env/shell-env! dot-sand-dir sand-json {:temp? temp?})
+                 warn-missing-packages)]
+    (core/update-sand-json! dot-sand-dir
+      (assoc sand-json-opts :missing-packages (:missing-packages result)))
     result))
 
 (defn shell [{:keys [options]}]
@@ -233,22 +251,27 @@
                   {:fname (str path)
                    :formatter-id (get formatter "id")
                    :formatter formatter})
-        packages (set
-                   (mapcat
-                     (fn [{:keys [formatter]}]
-                       (cons (get formatter "package")
-                         (seq (get formatter "runtime-packages"))))
-                     actions))
+        formatter-packages (fn [formatter]
+                             (cons (get formatter "package")
+                               (get formatter "runtime-packages")))
+        packages (set (mapcat (comp formatter-packages :formatter) actions))
         nixpkgs-input (core/find-flake-nixpkgs dir)]
     (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} dir]
-      (let [cmds (for [[_ actions] (group-by :formatter-id actions)
-                       :let [{:keys [formatter]} (first actions)]
-                       cmd (core/formatter-args formatter (map :fname actions))]
-                   cmd)
-            shell-env (when (seq cmds)
+      (let [groups (for [[_ actions] (group-by :formatter-id actions)
+                         :let [{:keys [formatter]} (first actions)]]
+                     {:cmds (core/formatter-args formatter (map :fname actions))
+                      :fnames (map :fname actions)
+                      :formatter formatter})
+            shell-env (when (seq groups)
                         (load-shell-env! dot-sand-dir temp?
                           {:nixpkgs-input nixpkgs-input :packages packages}))
             env (:env shell-env)
+            {skipped true runnable false}
+            #__ (group-by
+                  #(boolean (some (:missing-packages shell-env)
+                              (formatter-packages (:formatter %))))
+                  groups)
+            cmds (mapcat :cmds runnable)
             exit-code (try
                         (some
                           (fn [[cmd & args]]
@@ -269,9 +292,16 @@
                                 127)))
                           cmds)
                         (finally
-                          (shell-env/finish! shell-env)))]
-        (when exit-code
-          (exit exit-code))))))
+                          (shell-env/finish! shell-env)))
+            skipped-count (count (mapcat :fnames skipped))]
+        (when (pos? skipped-count)
+          (binding [*out* *err*]
+            (println (str "sand: skipped " skipped-count " file"
+                       (when (not= 1 skipped-count) "s")
+                       " that need a missing package"))))
+        (cond
+          exit-code (exit exit-code)
+          (pos? skipped-count) (exit 1))))))
 
 (defn fmt [{:keys [arguments options]}]
   (let [{:keys [debug]} options
