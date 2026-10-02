@@ -1,0 +1,24 @@
+name = "Without any nixpkgs to use, sand explains how to provide one"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+# The source data dir's shell.nix has no fallback nixpkgs, and an empty
+# NIX_PATH leaves only the channel dirs, which must not have nixpkgs.
+run = """
+git init -q . && git add a.toml \
+  && NIX_PATH= nix-instantiate --eval -E '(builtins.tryEval <nixpkgs>).success' | grep -qx false \
+  && { NIX_PATH= SAND_DATA_DIR="$SAND_SOURCE_DATA_DIR" sand format a.toml 2> err; test $? = 1; } \
+  && grep -q "sand: no nixpkgs found" err
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a=1
+"""

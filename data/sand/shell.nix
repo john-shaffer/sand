@@ -37,10 +37,7 @@ let
         description = "nixpkgs ${sandNixpkgs.rev}";
       }
     else
-      {
-        path = <nixpkgs>;
-        description = "<nixpkgs>";
-      };
+      throw "sand: no nixpkgs found. Add a nixpkgs input to the flake.lock in this repo, or add nixpkgs to NIX_PATH.";
   pkgs' = if pkgs != null then pkgs else import nixpkgsSource.path { };
   pkgsDescription = if pkgs != null then "the given pkgs" else nixpkgsSource.description;
   # A package can disappear when nixpkgs is updated, so give a clearer
