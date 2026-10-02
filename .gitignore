@@ -6,6 +6,7 @@
 !.sand
 !.standard-clj.edn
 
+__pycache__
 bench*.json
 gcroots
 plot*.png
