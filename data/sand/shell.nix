@@ -9,22 +9,40 @@ let
     name = "sand-json";
   };
   data = builtins.fromJSON (builtins.readFile jsonPath);
-  nixpkgs =
+  # The nixpkgs that sand was built with. The build replaces null with its
+  # locked github input.
+  sandNixpkgs = null;
+  fetchLocked =
+    locked:
+    fetchTarball {
+      url = "https://github.com/${locked.owner}/${locked.repo}/archive/${locked.rev}.tar.gz";
+      sha256 = locked.narHash;
+    };
+  nixPathNixpkgs = builtins.tryEval <nixpkgs>;
+  # Prefer the flake's nixpkgs, then <nixpkgs>, then sand's own.
+  nixpkgsSource =
     if data ? nixpkgs && data.nixpkgs ? locked then
-      fetchTarball {
-        url = "https://github.com/${data.nixpkgs.locked.owner}/${data.nixpkgs.locked.repo}/archive/${data.nixpkgs.locked.rev}.tar.gz";
-        sha256 = data.nixpkgs.locked.narHash;
+      {
+        path = fetchLocked data.nixpkgs.locked;
+        description = "nixpkgs ${data.nixpkgs.locked.rev}";
+      }
+    else if nixPathNixpkgs.success then
+      {
+        path = nixPathNixpkgs.value;
+        description = "<nixpkgs>";
+      }
+    else if sandNixpkgs != null then
+      {
+        path = fetchLocked sandNixpkgs;
+        description = "nixpkgs ${sandNixpkgs.rev}";
       }
     else
-      <nixpkgs>;
-  pkgs' = if pkgs != null then pkgs else import nixpkgs { };
-  pkgsDescription =
-    if pkgs != null then
-      "the given pkgs"
-    else if data ? nixpkgs && data.nixpkgs ? locked then
-      "nixpkgs ${data.nixpkgs.locked.rev}"
-    else
-      "<nixpkgs>";
+      {
+        path = <nixpkgs>;
+        description = "<nixpkgs>";
+      };
+  pkgs' = if pkgs != null then pkgs else import nixpkgsSource.path { };
+  pkgsDescription = if pkgs != null then "the given pkgs" else nixpkgsSource.description;
   # A package can disappear when nixpkgs is updated, so give a clearer
   # error than nix's missing attribute error.
   getPkg =

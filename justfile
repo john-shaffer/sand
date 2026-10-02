@@ -44,6 +44,10 @@ format:
 _jar-app-path:
     @nix build .#sand-jar-app --print-out-paths
 
+# Data dir as installed, with the nixpkgs that sand was built with
+_data-dir:
+    @echo "$(nix build .#sand-data --print-out-paths)/share/sand"
+
 # Run sand
 run *args:
     #!/usr/bin/env bash
@@ -69,7 +73,8 @@ test-jar *args:
     trap 'rm -rf "$SAND_CACHE_DIR"' EXIT
     # For scenarios that need a modified copy of sand's data files
     export SAND_SOURCE_DATA_DIR="$(realpath ./data/sand)"
-    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$(realpath ./data/sand)" SAND_SCHEMA="$(realpath ./schema/sand.toml.latest.schema.json)" tact {{ if args == "" { "test" } else { args } }}
+    data_dir="$(just _data-dir)"
+    PATH="$(just _jar-app-path)/bin:$PATH" SAND_DATA_DIR="$data_dir" SAND_SCHEMA="$data_dir/sand.toml.latest.schema.json" tact {{ if args == "" { "test" } else { args } }}
 
 # Update dependencies
 update: && update-deps-lock format

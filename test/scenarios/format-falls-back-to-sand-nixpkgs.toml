@@ -1,0 +1,23 @@
+name = "Without a flake.lock or <nixpkgs>, the nixpkgs sand was built with is used"
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+# An empty NIX_PATH leaves only the channel dirs, which must not have
+# nixpkgs for this to test anything.
+run = """
+git init -q . && git add a.toml \
+  && NIX_PATH= nix-instantiate --eval -E '(builtins.tryEval <nixpkgs>).success' | grep -qx false \
+  && NIX_PATH= sand format a.toml
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""

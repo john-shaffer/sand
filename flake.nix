@@ -69,14 +69,30 @@
             }
           ];
         };
+        # Formatted as a nix expression for the shell.nix template
+        sandNixpkgs = ''
+          {
+              owner = "nixos";
+              repo = "nixpkgs";
+              rev = "${nixpkgs.rev}";
+              narHash = "${nixpkgs.narHash}";
+            }'';
+        # The data dir that SAND_DATA_DIR points to
+        sandDataDir = runCommand "sand-data" { } ''
+          mkdir -p $out/share
+          cp -r ${sandData}/data/sand $out/share
+          chmod u+w $out/share/sand $out/share/sand/shell.nix
+          substituteInPlace $out/share/sand/shell.nix \
+            --replace-fail "sandNixpkgs = null;" ${lib.escapeShellArg "sandNixpkgs = ${sandNixpkgs};"}
+          cp ${sandData}/schema/sand.toml.latest.schema.json $out/share/sand
+        '';
         sandUnwrapped = stdenv.mkDerivation {
           inherit (sandBin) meta name version;
           phases = [ "installPhase" ];
           installPhase = ''
-            mkdir -p $out/bin $out/share/sand
+            mkdir -p $out/bin $out/share
             cp ${sandBin}/bin/sand $out/bin/sand
-            cp -r ${sandData}/data/sand $out/share
-            cp ${sandData}/schema/sand.toml.latest.schema.json $out/share/sand
+            cp -r ${sandDataDir}/share/sand $out/share
           '';
         };
         runtimePaths = [
@@ -120,6 +136,7 @@
         packages = {
           default = sandWrapped;
           sand = sandWrapped;
+          sand-data = sandDataDir;
           sand-jar-app = sandJarApp;
           sand-unwrapped = sandUnwrapped;
         };
