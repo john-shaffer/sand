@@ -43,11 +43,42 @@ let
   # A package can disappear when nixpkgs is updated. Renamed packages
   # become aliases that throw, which tryEval catches.
   hasPkg = name: pkgs' ? ${name} && (builtins.tryEval pkgs'.${name}).success;
-  shellPkgs = builtins.partition hasPkg (data.shellPkgs or [ ]);
+  aliasesPath = nixpkgsSource.path + "/pkgs/top-level/aliases.nix";
+  aliasLines = builtins.filter builtins.isString (
+    builtins.split "\n" (builtins.readFile aliasesPath)
+  );
+  # The new name of a package that nixpkgs renamed, or null. The alias
+  # throws "'old' has been renamed to/replaced by 'new'", but tryEval
+  # can't see the message, so it's read from the alias's source.
+  renamedTo =
+    name:
+    let
+      quoted = pkgs'.lib.escapeRegex name;
+      matches = builtins.filter (m: m != null) (
+        map (builtins.match "  ${quoted} = throw \"'${quoted}' has been renamed to/replaced by '([^']+)'\".*") aliasLines
+      );
+    in
+    if pkgs != null || !builtins.pathExists aliasesPath || matches == [ ] then
+      null
+    else
+      builtins.head (builtins.head matches);
+  # The name that a package is found under, or null if it's missing
+  resolvePkg =
+    name:
+    let
+      newName = renamedTo name;
+    in
+    if hasPkg name then
+      name
+    else if newName != null && hasPkg newName then
+      newName
+    else
+      null;
+  shellPkgs = builtins.partition (name: resolvePkg name != null) (data.shellPkgs or [ ]);
 in
 pkgs'.mkShell (
   {
-    buildInputs = map (name: pkgs'.${name}) shellPkgs.right;
+    buildInputs = map (name: pkgs'.${resolvePkg name}) shellPkgs.right;
   }
   # sand reads this to warn about the missing packages and skip what
   # needs them.

@@ -1,0 +1,47 @@
+name = "A package that nixpkgs renamed is found under its new name"
+
+# treefmt2 is an alias in this nixpkgs that throws
+# "'treefmt2' has been renamed to/replaced by 'treefmt'".
+[setup.files."flake.lock"]
+content = """
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1790218706,
+        "narHash": "sha256-6e4Na3z008XpdVyOXgfasXIn1aN+z8AXFG+jXdQSyuI=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "c508844df6c28fa6dabc1b6af70f3ccbd65c5201",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
+"""
+
+[setup.files."b.zz"]
+content = """
+b
+"""
+
+[[steps]]
+# treefmt --version ignores the files, so it only checks that treefmt ran.
+run = """
+mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
+  && printf '[tf]\\nargs = ["--version", "*@"]\\nbin-name = "treefmt"\\nextensions = ["zz"]\\npackage = "treefmt2"\\n' >> data/formatters.toml \
+  && git init -q . && git add b.zz flake.lock \
+  && SAND_DATA_DIR="$PWD/data" sand format b.zz > out 2> err \
+  && grep -q "treefmt v" out \
+  && ! grep -q "warning" err
+"""
+
+[steps.expected]
+exit-code = 0
