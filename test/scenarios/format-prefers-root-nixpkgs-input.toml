@@ -1,0 +1,69 @@
+name = "The root flake's nixpkgs input is used over other nixpkgs nodes"
+
+# The node named nixpkgs belongs to a dependency, as when a flake's own
+# nixpkgs input gets locked as nixpkgs_2. Its rev doesn't exist, so
+# formatting fails if sand picks it.
+[setup.files."flake.lock"]
+content = """
+{
+  "nodes": {
+    "dep": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "owner": "example",
+        "repo": "dep",
+        "rev": "0000000000000000000000000000000000000000",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1999999999,
+        "narHash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "0000000000000000000000000000000000000000",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1790218706,
+        "narHash": "sha256-6e4Na3z008XpdVyOXgfasXIn1aN+z8AXFG+jXdQSyuI=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "c508844df6c28fa6dabc1b6af70f3ccbd65c5201",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "dep": "dep",
+        "nixpkgs": "nixpkgs_2"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
+"""
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = "git init -q . && git add . && sand format a.toml && grep -q c508844df6c28fa6dabc1b6af70f3ccbd65c5201 .sand/sand.json"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""

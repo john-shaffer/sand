@@ -85,10 +85,24 @@
     (catch InvalidPathException _ nil)
     (catch SecurityException _ nil)))
 
+(defn- resolve-flake-input
+  "Returns the node key that the input named `input-name` of the node
+   `node-key` refers to in a parsed flake.lock map. An input is either a
+   node key or, for inputs that follow another, a path of input names
+   starting at the root node."
+  [m node-key input-name]
+  (let [ref (get-in m ["nodes" node-key "inputs" input-name])]
+    (if (sequential? ref)
+      (reduce #(resolve-flake-input m %1 %2) (get m "root") ref)
+      ref)))
+
 (defn find-nixpkgs-input
-  "Finds a nixpkgs input, if any, from a parsed flake.lock map."
+  "Finds a nixpkgs input, if any, from a parsed flake.lock map.
+   Prefers the root flake's input named nixpkgs."
   [m]
-  (let [candidate (get-in m ["nodes" "nixpkgs"])]
+  (let [candidate (some->> (resolve-flake-input m (get m "root") "nixpkgs")
+                    (vector "nodes")
+                    (get-in m))]
     (if (= "github" (get-in candidate ["locked" "type"]))
       candidate
       (->> (get m "nodes")
