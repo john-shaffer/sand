@@ -15,6 +15,7 @@ exit-code = 0
 content = """
 /gcroots/
 /sand.json.lock
+/shell.nix
 """
 
 [steps.expected.files."a.toml"]

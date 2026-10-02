@@ -273,12 +273,22 @@
         (u/write-atomically! shell-nix-path
           (fn [^java.io.Writer w]
             (.write w ^String template)))))
-    ; GC roots are specific to the machine, and the lock file is only
-    ; used while sand runs.
-    (when-not (fs/exists? gitignore-path)
-      (u/write-atomically! gitignore-path
-        (fn [^java.io.Writer w]
-          (.write w "/gcroots/\n/sand.json.lock\n"))))
+    ; GC roots are specific to the machine, the lock file is only used
+    ; while sand runs, and shell.nix is generated. Lines are added to an
+    ; existing .gitignore, so that repos set up by older versions of sand
+    ; get the new ones, and any lines added by users are kept.
+    (let [existing (try (slurp (fs/file gitignore-path))
+                     (catch java.io.IOException _ ""))
+          missing (remove (set (str/split-lines existing))
+                    ["/gcroots/" "/sand.json.lock" "/shell.nix"])]
+      (when (seq missing)
+        (u/write-atomically! gitignore-path
+          (fn [^java.io.Writer w]
+            (.write w ^String existing)
+            (when-not (or (empty? existing) (str/ends-with? existing "\n"))
+              (.write w "\n"))
+            (doseq [line missing]
+              (.write w (str line "\n")))))))
     dot-sand-dir))
 
 (defmacro with-dot-sand-dir

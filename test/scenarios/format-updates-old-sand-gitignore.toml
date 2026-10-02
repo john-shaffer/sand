@@ -1,0 +1,32 @@
+name = "An existing .sand/.gitignore gets the lines it's missing"
+
+# What older versions of sand wrote, plus a line the user added
+[setup.files.".sand/.gitignore"]
+content = """
+/gcroots/
+/sand.json.lock
+/mine
+"""
+
+[setup.files."a.toml"]
+content = """
+a=1
+"""
+
+[[steps]]
+run = """
+git init -q . && git add a.toml && sand format a.toml \
+  && git check-ignore -q .sand/shell.nix \
+  && test "$(grep -cx /shell.nix .sand/.gitignore)" = 1 \
+  && grep -qx /mine .sand/.gitignore \
+  && sand format a.toml \
+  && test "$(grep -cx /shell.nix .sand/.gitignore)" = 1
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.toml"]
+content = """
+a = 1
+"""
