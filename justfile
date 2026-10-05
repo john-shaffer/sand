@@ -79,6 +79,7 @@ test-jar *args:
 # Update dependencies
 update: && update-deps-lock format
     nix flake update
+    nix flake update --flake ./dev
     clj -M:antq --upgrade --force
 
 # Update deps-lock.json after changing Clojure deps

@@ -8,16 +8,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:jlesquembre/clj-nix";
     };
-    finefile = {
-      inputs.clj-nix.follows = "clj-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:john-shaffer/finefile";
-    };
-    tact = {
-      inputs.clj-nix.follows = "clj-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:john-shaffer/tact";
-    };
   };
   outputs =
     inputs:
@@ -121,23 +111,6 @@
               '';
         in
         {
-          devShells.default = pkgs.mkShell {
-            buildInputs =
-              with pkgs;
-              [
-                clojure
-                deps-lock
-                finefile.packages.${system}.default
-                just
-                inputs.tact.packages.${system}.default
-              ]
-              ++ runtimePaths;
-            shellHook = ''
-              echo
-              echo -e "Run '\033[1mjust <recipe>\033[0m' to get started"
-              just --list
-            '';
-          };
           packages = {
             default = sandWrapped;
             sand = sandWrapped;
@@ -149,7 +122,6 @@
       );
     in
     {
-      devShells = builtins.mapAttrs (_: outputs: outputs.devShells) outputsBySystem;
       packages = builtins.mapAttrs (_: outputs: outputs.packages) outputsBySystem;
     };
 }
