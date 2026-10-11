@@ -1,0 +1,52 @@
+name = "Format C# files"
+
+[setup.files."Example.cs"]
+content = """
+class Example{void Hello(){var x=1;
+if(x==1){Console.WriteLine( "hi" );}}}
+"""
+
+[setup.files."src/Greeter.cs"]
+content = """
+namespace Demo
+{
+class Greeter
+{
+        public string Greet(string name){
+return "Hello, "+name;
+}
+}
+}
+"""
+
+[[steps]]
+run = "sand format Example.cs src/Greeter.cs"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."Example.cs"]
+content = """
+class Example
+{
+    void Hello()
+    {
+        var x = 1;
+        if (x == 1) { Console.WriteLine("hi"); }
+    }
+}
+"""
+
+[steps.expected.files."src/Greeter.cs"]
+content = """
+namespace Demo
+{
+    class Greeter
+    {
+        public string Greet(string name)
+        {
+            return "Hello, " + name;
+        }
+    }
+}
+"""

@@ -32,6 +32,14 @@ bin-name = "clang-format"
 extensions = ["c", "cpp", "h"]
 package = "clang-tools"
 
+# Without a project or solution file, dotnet format can only run the
+# whitespace formatter, and only with --folder.
+[dotnet-format]
+args = ["format", "whitespace", "--folder", "--include", "*@"]
+bin-name = "dotnet"
+extensions = ["cs"]
+package = "dotnet-sdk"
+
 [gofmt]
 args = ["-w", "*@"]
 bin-name = "gofmt"
