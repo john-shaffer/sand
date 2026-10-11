@@ -66,6 +66,26 @@ args = ["--write", "--ignore-path", "/dev/null", "*@"]
 extensions = ["js", "jsx", "ts", "tsx"]
 package = "prettier"
 
+# Some tools read JSON with comments and trailing commas (JSONC), even in
+# files with a .json extension. jsonfmt fails on these files, so they go
+# to prettier. --parser jsonc keeps comments and trailing commas. Without
+# it, prettier picks a parser by filename and removes trailing commas from
+# some of these files.
+# - tsconfig.json and jsconfig.json are read by TypeScript.
+# - devcontainer.json and .devcontainer.json are read by Dev Containers.
+# - .code-workspace files are read by VS Code.
+[prettier-jsonc]
+args = ["--write", "--ignore-path", "/dev/null", "--parser", "jsonc", "*@"]
+bin-name = "prettier"
+extensions = ["code-workspace", "jsonc"]
+filenames = [
+  ".devcontainer.json",
+  "devcontainer.json",
+  "jsconfig.json",
+  "tsconfig.json",
+]
+package = "prettier"
+
 [pretty-php]
 args = ["*@"]
 extensions = ["php"]

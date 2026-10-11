@@ -1,0 +1,103 @@
+name = "Format known JSONC files with prettier"
+
+[setup.files."tsconfig.json"]
+content = """
+{
+  // Comment
+  "compilerOptions": {"strict":true,},
+}
+"""
+
+[setup.files."web/jsconfig.json"]
+content = """
+{
+  // Comment
+  "compilerOptions": {"checkJs":true,},
+}
+"""
+
+[setup.files.".devcontainer.json"]
+content = """
+{
+  // Comment
+  "image":"node",
+}
+"""
+
+[setup.files.".devcontainer/node/devcontainer.json"]
+content = """
+{
+  // Comment
+  "image":"node",
+}
+"""
+
+[setup.files."project.code-workspace"]
+content = """
+{
+  // Comment
+  "folders":[{"path":"."},],
+}
+"""
+
+[setup.files."config.jsonc"]
+content = """
+{
+  // Comment
+  "a":1,
+}
+"""
+
+[[steps]]
+run = "sand format tsconfig.json web/jsconfig.json .devcontainer.json .devcontainer/node/devcontainer.json project.code-workspace config.jsonc"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."tsconfig.json"]
+content = """
+{
+  // Comment
+  "compilerOptions": { "strict": true },
+}
+"""
+
+[steps.expected.files."web/jsconfig.json"]
+content = """
+{
+  // Comment
+  "compilerOptions": { "checkJs": true },
+}
+"""
+
+[steps.expected.files.".devcontainer.json"]
+content = """
+{
+  // Comment
+  "image": "node",
+}
+"""
+
+[steps.expected.files.".devcontainer/node/devcontainer.json"]
+content = """
+{
+  // Comment
+  "image": "node",
+}
+"""
+
+[steps.expected.files."project.code-workspace"]
+content = """
+{
+  // Comment
+  "folders": [{ "path": "." }],
+}
+"""
+
+[steps.expected.files."config.jsonc"]
+content = """
+{
+  // Comment
+  "a": 1,
+}
+"""
