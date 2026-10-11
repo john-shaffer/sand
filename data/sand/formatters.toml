@@ -88,6 +88,17 @@ filenames = [
 ]
 package = "prettier"
 
+# VS Code reads every .json file in a .vscode dir (settings.json,
+# launch.json, etc.) as JSONC. This takes precedence over jsonfmt for
+# those files only.
+[prettier-vscode]
+args = ["--write", "--ignore-path", "/dev/null", "--parser", "jsonc", "*@"]
+bin-name = "prettier"
+extensions = ["json"]
+package = "prettier"
+parent-dirnames = [".vscode"]
+priority = 3
+
 [pretty-php]
 args = ["*@"]
 extensions = ["php"]

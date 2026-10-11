@@ -1,0 +1,47 @@
+name = "Format JSONC files in .vscode dirs with prettier and other JSON files with jsonfmt"
+
+[setup.files.".vscode/settings.json"]
+content = """
+{
+  // Format on save
+  "editor.formatOnSave":true,
+}
+"""
+
+[setup.files."other.json"]
+content = """
+{"a":1}
+"""
+
+[setup.files.".vscode/nested/other.json"]
+content = """
+{"a":1}
+"""
+
+[[steps]]
+run = "sand format .vscode/settings.json other.json .vscode/nested/other.json"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files.".vscode/settings.json"]
+content = """
+{
+  // Format on save
+  "editor.formatOnSave": true,
+}
+"""
+
+[steps.expected.files."other.json"]
+content = """
+{
+  "a": 1
+}
+"""
+
+[steps.expected.files.".vscode/nested/other.json"]
+content = """
+{
+  "a": 1
+}
+"""
