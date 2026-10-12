@@ -1,0 +1,34 @@
+name = "A formatter's env map is set when it runs"
+
+[setup.files."a.zz"]
+content = """
+a
+"""
+
+# A formatter that replaces the file's content with the value of an
+# env var from its env map.
+[setup.files."formatter.toml"]
+content = """
+
+[envtest]
+args = ["-c", "printf '%s\\\\n' \\"$SAND_TEST_VAR\\" > \\"$1\\"", "sh", "@"]
+bin-name = "sh"
+env = { SAND_TEST_VAR = "from env map" }
+extensions = ["zz"]
+package = "bash"
+"""
+
+[[steps]]
+run = """
+mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
+  && cat formatter.toml >> data/formatters.toml \
+  && SAND_DATA_DIR="$PWD/data" sand format a.zz
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.zz"]
+content = """
+from env map
+"""

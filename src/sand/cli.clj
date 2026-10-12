@@ -271,15 +271,18 @@
                   #(boolean (some (:missing-packages shell-env)
                               (formatter-packages (:formatter %))))
                   groups)
-            cmds (mapcat :cmds runnable)
+            cmds (for [{:keys [cmds formatter]} runnable
+                       cmd cmds]
+                   {:cmd cmd
+                    :env (merge env (update-vals (get formatter "env") str))})
             exit-code (try
                         (some
-                          (fn [[cmd & args]]
+                          (fn [{[cmd & args] :cmd cmd-env :env}]
                             (when debug
                               (log/debug (str "Running command: " (str/join " " (map u/shell-quote (cons cmd args))))))
-                            (if-let [resolved (shell-env/resolve-command env cmd)]
+                            (if-let [resolved (shell-env/resolve-command cmd-env cmd)]
                               (let [proc (apply p/start
-                                           {:dir (str dir) :env env :err :inherit :out :inherit}
+                                           {:dir (str dir) :env cmd-env :err :inherit :out :inherit}
                                            resolved
                                            args)
                                     exit-code @(p/exit-ref proc)]

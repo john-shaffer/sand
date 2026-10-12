@@ -5,6 +5,8 @@
 # bin-name: Binary to run, if different from the package's default.
 # config-filenames: List of config filenames to look for.
 #   These can be glob patterns, like "*.csproj".
+# env: Map of env vars to set when running the formatter. Values are converted
+#   to strings.
 # extensions: List of file extensions this formatter works on.
 # filenames: List of exact filenames this formatter works on.
 # package: The name of the package in nixpkgs. See https://search.nixos.org.
