@@ -242,7 +242,7 @@
     (when-not (zero? exit-code)
       (exit exit-code))))
 
-(defn format-paths [{:keys [debug]} formatters repo paths]
+(defn format-paths [{:keys [absolute-roots debug]} formatters repo paths]
   (let [dir (or repo (fs/path "."))
         actions (for [path paths
                       :let [file-dir (-> path fs/canonicalize fs/parent)
@@ -259,7 +259,7 @@
     (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} dir]
       (let [groups (for [[_ actions] (group-by :formatter-id actions)
                          :let [{:keys [formatter]} (first actions)]]
-                     {:cmds (core/formatter-args formatter (map :fname actions))
+                     {:cmds (core/formatter-args formatter {:absolute-roots absolute-roots :dir dir} (map :fname actions))
                       :fnames (map :fname actions)
                       :formatter formatter})
             shell-env (when (seq groups)
@@ -311,6 +311,12 @@
                      slurp
                      toml/read-string
                      core/compile-formatters)
+        ; Files in paths given as absolute paths are passed to
+        ; formatters as absolute paths. Others are passed as relative.
+        absolute-roots (->> arguments
+                         (map fs/path)
+                         (filter fs/absolute?)
+                         (map fs/canonicalize))
         repo->paths (->> (or (seq arguments) ["."])
                       (map fs/path)
                       git/group-by-repos
@@ -336,7 +342,8 @@
         (if repo
           (log/debug (str "Running formatters in git repo " (pr-str (str repo))))
           (log/debug "Running formatters with no git repo")))
-      (format-paths options formatters repo paths))))
+      (format-paths (assoc options :absolute-roots absolute-roots)
+        formatters repo paths))))
 
 (defn -main [& args]
   (let [parsed-opts (validate-args args)

@@ -153,17 +153,34 @@
       found
       (-> found fs/parent fs/canonicalize (fs/path ".sand")))))
 
+(defn- formatter-fname
+  "Returns the path to pass a formatter for fname. That's a path relative
+   to `dir`, unless fname is in one of `absolute-roots`. Relative paths
+   inside dir start with ./ so that a name like -x can't be read as an
+   option."
+  [dir absolute-roots fname]
+  (let [rel (fs/relativize dir fname)]
+    (cond
+      (some #(fs/starts-with? fname %) absolute-roots) fname
+      (str/starts-with? (str rel) "..") rel
+      :else (fs/path "." rel))))
+
 (defn formatter-args
-  "Returns a seq of argument vectors to run formatter on fnames."
-  [formatter fnames]
+  "Returns a seq of argument vectors to run formatter on fnames, from
+   the `dir` directory. Files are passed as paths relative to `dir`,
+   except for those in `absolute-roots`, which are canonical paths that
+   were given as absolute paths."
+  [formatter {:keys [absolute-roots dir]} fnames]
   (let [{:strs [args args-config bin-name config-filenames package]} formatter
         grouped-by-config (u/group-paths-by-ancestor
                             #(find-filename-in % config-filenames)
                             fnames)
-        cmd (or bin-name package)]
+        cmd (or bin-name package)
+        cdir (fs/canonicalize dir)]
     (mapcat
       (fn [[config-dir fnames]]
-        (let [config-path (when config-dir
+        (let [fnames (map #(formatter-fname cdir absolute-roots %) fnames)
+              config-path (when config-dir
                             (find-filename-up config-dir config-filenames))
               active-args (or (when config-path args-config) args)
               arg-arity (some #{"@" "*@"} active-args)

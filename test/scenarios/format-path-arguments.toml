@@ -1,0 +1,39 @@
+name = "Formatters get relative paths, except for paths given as absolute"
+
+[setup.files."a.zz"]
+content = """
+a
+"""
+
+[setup.files."b.zz"]
+content = """
+b
+"""
+
+# A formatter that replaces each file's content with the path it was
+# given.
+[setup.files."formatter.toml"]
+content = """
+
+[pathtest]
+args = ["-c", "printf '%s\\\\n' \\"$1\\" > \\"$1\\"", "sh", "@"]
+bin-name = "sh"
+extensions = ["zz"]
+package = "bash"
+"""
+
+[[steps]]
+run = """
+mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
+  && cat formatter.toml >> data/formatters.toml \
+  && SAND_DATA_DIR="$PWD/data" sand format a.zz "$(pwd -P)/b.zz" \
+  && test "$(cat b.zz)" = "$(pwd -P)/b.zz"
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."a.zz"]
+content = """
+./a.zz
+"""

@@ -1,5 +1,10 @@
 name = "Files with unusual names are formatted in a git repo"
 
+[setup.files."-dash.toml"]
+content = """
+d=4
+"""
+
 [setup.files."é.toml"]
 content = """
 a=1
@@ -20,6 +25,11 @@ run = "git init -q . && git add . && sand format ."
 
 [steps.expected]
 exit-code = 0
+
+[steps.expected.files."-dash.toml"]
+content = """
+d = 4
+"""
 
 [steps.expected.files."é.toml"]
 content = """
