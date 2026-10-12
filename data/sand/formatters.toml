@@ -52,6 +52,9 @@ args = ["format", "whitespace", "--folder", "--include", "*@"]
 args-config = ["format", "{{config}}", "--include", "*@"]
 bin-name = "dotnet"
 config-filenames = ["*.csproj"]
+# Turn off the dotnet CLI's telemetry and its first-run output. The
+# nixpkgs setup hook sets these too, but sand shouldn't depend on that.
+env = { DOTNET_CLI_TELEMETRY_OPTOUT = "1", DOTNET_NOLOGO = "1", DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1", DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK = "1" }
 extensions = ["cs"]
 package = "dotnet-sdk"
 
