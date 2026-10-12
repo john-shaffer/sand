@@ -1,0 +1,60 @@
+name = "Format C# files with the full dotnet format when a .csproj is found"
+
+[setup.files.".editorconfig"]
+content = """
+root = true
+
+[*.cs]
+dotnet_diagnostic.IDE0011.severity = warning
+"""
+
+[setup.files."app/App.csproj"]
+content = """
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+"""
+
+[setup.files."app/src/A.cs"]
+content = """
+class A{int M(int x){if(x==1) return 2;
+return 3;}}
+"""
+
+[setup.files."app/src/B.cs"]
+content = """
+class B{int M(int x){if(x==1) return 2;
+return 3;}}
+"""
+
+[[steps]]
+# Run from a subdir so that the repo root, where dotnet format runs,
+# differs from the working dir. B.cs isn't given, so it's unchanged.
+run = "git init -q . && git add . && cd app && sand format src/A.cs"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."app/src/A.cs"]
+content = """
+class A
+{
+    int M(int x)
+    {
+        if (x == 1)
+        {
+            return 2;
+        }
+
+        return 3;
+    }
+}
+"""
+
+[steps.expected.files."app/src/B.cs"]
+content = """
+class B{int M(int x){if(x==1) return 2;
+return 3;}}
+"""
