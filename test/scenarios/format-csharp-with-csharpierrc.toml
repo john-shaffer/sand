@@ -1,0 +1,153 @@
+name = "Format C# files with CSharpier when a CSharpier config file is found"
+
+[setup.files."empty/.csharpierrc"]
+content = ""
+
+[setup.files."empty/src/Example.cs"]
+content = """
+class Example{void Hello(){var x=1;
+if(x==1){Console.WriteLine( "hi" );}}}
+"""
+
+[setup.files."json-ext/.csharpierrc.json"]
+content = """
+{ "useTabs": true }
+"""
+
+[setup.files."json-ext/src/Example.cs"]
+content = """
+class Example{void Hello(){var x=1;
+if(x==1){Console.WriteLine( "hi" );}}}
+"""
+
+[setup.files."no-ext-json/.csharpierrc"]
+content = """
+{ "useTabs": true }
+"""
+
+[setup.files."no-ext-json/src/Example.cs"]
+content = """
+class Example{void Hello(){var x=1;
+if(x==1){Console.WriteLine( "hi" );}}}
+"""
+
+[setup.files."no-ext-yaml/.csharpierrc"]
+content = """
+useTabs: true
+"""
+
+[setup.files."no-ext-yaml/src/Example.cs"]
+content = """
+class Example{void Hello(){var x=1;
+if(x==1){Console.WriteLine( "hi" );}}}
+"""
+
+[setup.files."yaml-ext/.csharpierrc.yaml"]
+content = """
+useTabs: true
+"""
+
+[setup.files."yaml-ext/src/Example.cs"]
+content = """
+class Example{void Hello(){var x=1;
+if(x==1){Console.WriteLine( "hi" );}}}
+"""
+
+[setup.files."no-config/Example.cs"]
+content = """
+class Example{void Hello(){var x=1;
+if(x==1){Console.WriteLine( "hi" );}}}
+"""
+
+[[steps]]
+run = "sand format empty/src/Example.cs json-ext/src/Example.cs no-ext-json/src/Example.cs no-ext-yaml/src/Example.cs yaml-ext/src/Example.cs no-config/Example.cs"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."empty/src/Example.cs"]
+content = """
+class Example
+{
+    void Hello()
+    {
+        var x = 1;
+        if (x == 1)
+        {
+            Console.WriteLine("hi");
+        }
+    }
+}
+"""
+
+[steps.expected.files."json-ext/src/Example.cs"]
+content = """
+class Example
+{
+\tvoid Hello()
+\t{
+\t\tvar x = 1;
+\t\tif (x == 1)
+\t\t{
+\t\t\tConsole.WriteLine("hi");
+\t\t}
+\t}
+}
+"""
+
+[steps.expected.files."no-ext-json/src/Example.cs"]
+content = """
+class Example
+{
+\tvoid Hello()
+\t{
+\t\tvar x = 1;
+\t\tif (x == 1)
+\t\t{
+\t\t\tConsole.WriteLine("hi");
+\t\t}
+\t}
+}
+"""
+
+[steps.expected.files."no-ext-yaml/src/Example.cs"]
+content = """
+class Example
+{
+\tvoid Hello()
+\t{
+\t\tvar x = 1;
+\t\tif (x == 1)
+\t\t{
+\t\t\tConsole.WriteLine("hi");
+\t\t}
+\t}
+}
+"""
+
+[steps.expected.files."yaml-ext/src/Example.cs"]
+content = """
+class Example
+{
+\tvoid Hello()
+\t{
+\t\tvar x = 1;
+\t\tif (x == 1)
+\t\t{
+\t\t\tConsole.WriteLine("hi");
+\t\t}
+\t}
+}
+"""
+
+[steps.expected.files."no-config/Example.cs"]
+content = """
+class Example
+{
+    void Hello()
+    {
+        var x = 1;
+        if (x == 1) { Console.WriteLine("hi"); }
+    }
+}
+"""

@@ -32,6 +32,15 @@ bin-name = "clang-format"
 extensions = ["c", "cpp", "h"]
 package = "clang-tools"
 
+# Only used when a CSharpier config file is found, since dotnet format is
+# the default for C#. .csharpierrc may be JSON or YAML.
+[csharpier]
+args-config = ["format", "--config-path", "{{config}}", "*@"]
+config-filenames = [".csharpierrc", ".csharpierrc.json", ".csharpierrc.yaml"]
+extensions = ["cs", "csx"]
+package = "csharpier"
+priority = 3
+
 # Without a project or solution file, dotnet format can only run the
 # whitespace formatter, and only with --folder.
 [dotnet-format]
