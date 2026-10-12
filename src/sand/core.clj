@@ -73,6 +73,15 @@
   [config-map]
   config-map)
 
+(defn- find-filename-in
+  "Returns the [[java.nio.file.Path]] of the first of `filenames` that
+   exists in the `dir` directory, or nil."
+  ^Path [dir filenames]
+  (some #(let [candidate (fs/path dir %)]
+           (when (fs/exists? candidate)
+             candidate))
+    filenames))
+
 (defn find-filename-up
   "Finds a file or directory name, looking first in the `dir` directory
    and then in parent directories recursively. Returns the [[java.nio.file.Path]]
@@ -81,10 +90,7 @@
   (try
     (loop [current (fs/absolutize dir)]
       (when current
-        (if-let [found (some #(let [candidate (fs/path current %)]
-                                (when (fs/exists? candidate)
-                                  candidate))
-                             filenames)]
+        (if-let [found (find-filename-in current filenames)]
           found
           (recur (fs/parent current)))))
     (catch AccessDeniedException _ nil)
@@ -148,12 +154,7 @@
   [formatter fnames]
   (let [{:strs [args args-config bin-name config-filenames package]} formatter
         grouped-by-config (u/group-paths-by-ancestor
-                            (fn [path]
-                              (loop [[cfg & more] config-filenames]
-                                (cond
-                                  (nil? cfg) false
-                                  (fs/exists? (fs/path path cfg)) true
-                                  :else (recur more))))
+                            #(find-filename-in % config-filenames)
                             fnames)
         cmd (or bin-name package)]
     (mapcat
