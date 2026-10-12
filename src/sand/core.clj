@@ -75,11 +75,15 @@
 
 (defn- find-filename-in
   "Returns the [[java.nio.file.Path]] of the first of `filenames` that
-   exists in the `dir` directory, or nil."
+   exists in the `dir` directory, or nil. A filename can be a glob
+   pattern, like `*.csproj`. If a pattern matches several files, the
+   first in sorted order is returned."
   ^Path [dir filenames]
-  (some #(let [candidate (fs/path dir %)]
-           (when (fs/exists? candidate)
-             candidate))
+  (some #(if (re-find #"[*?\[{]" %)
+           (first (sort (fs/glob dir %)))
+           (let [candidate (fs/path dir %)]
+             (when (fs/exists? candidate)
+               candidate)))
     filenames))
 
 (defn find-filename-up
