@@ -1,0 +1,65 @@
+name = "Formatters run in a sandbox unless --no-sandbox is given"
+
+[setup.files."outside"]
+content = """
+secret
+"""
+
+[setup.files."repo/a.zz"]
+content = """
+a
+"""
+
+[setup.files."repo/other.txt"]
+content = """
+original
+"""
+
+# A formatter that reports what it can do, writing the report to the
+# file through a temp file and a rename. It also tries to change another
+# file in the repo.
+[setup.files."formatter.toml"]
+content = """
+
+[sandboxtest]
+args = ["-c", "echo changed > other.txt; if (exec 3<>/dev/tcp/1.1.1.1/53) 2>/dev/null; then n=net; else n=no-net; fi; if cat ../outside >/dev/null 2>&1; then o=read-outside; else o=no-read-outside; fi; printf '%s %s %s\\\\n' \\"$n\\" \\"$o\\" \\"${SAND_TEST_VAR:-no-env}\\" > \\"$1.tmp\\" && mv \\"$1.tmp\\" \\"$1\\"", "sh", "@"]
+bin-name = "sh"
+extensions = ["zz"]
+package = "bash"
+"""
+
+[[steps]]
+# --sandbox is the default
+run = """
+mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
+  && cat formatter.toml >> data/formatters.toml \
+  && cd repo && git init -q . && git add . \
+  && SAND_DATA_DIR="$PWD/../data" SAND_TEST_VAR=leaked sand format a.zz
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."repo/a.zz"]
+content = """
+no-net no-read-outside no-env
+"""
+
+[steps.expected.files."repo/other.txt"]
+content = """
+original
+"""
+
+[[steps]]
+run = """
+cd repo && SAND_DATA_DIR="$PWD/../data" SAND_TEST_VAR=leaked sand format --no-sandbox a.zz \
+  && grep -q "read-outside leaked" a.zz
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."repo/other.txt"]
+content = """
+changed
+"""

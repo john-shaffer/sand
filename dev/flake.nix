@@ -26,6 +26,7 @@
         {
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
+              bubblewrap
               clj-nix.packages.${system}.deps-lock
               clojure
               finefile.packages.${system}.default

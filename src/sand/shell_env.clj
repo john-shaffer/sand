@@ -404,7 +404,8 @@
       (let [rooted (rooted? roots-home key)]
         (when (and rooted temp?)
           (touch-root! roots-home key))
-        {:env (apply-diff outer diff)
+        {:diff diff
+         :env (apply-diff outer diff)
          :rooting (when-not rooted
                     {:key key
                      :proc (start-rooting! roots-home key entry)
@@ -419,7 +420,8 @@
                           (root-path roots-home key))])))]
         (link-entry! key entry)
         (prune-roots! roots key)
-        {:env (apply-diff outer diff)}))))
+        {:diff diff
+         :env (apply-diff outer diff)}))))
 
 (defn finish!
   "Waits for any background work started by shell-env!."

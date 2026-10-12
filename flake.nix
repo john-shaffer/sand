@@ -106,6 +106,7 @@
                 makeBinaryWrapper ${sandUnwrapped}/bin/sand $out/bin/sand \
                   --prefix PATH : ${lib.makeBinPath runtimePaths} \
                   --set-default SAND_BASH ${pkgs.bash}/bin/bash \
+                  --set-default SAND_BWRAP ${pkgs.bubblewrap}/bin/bwrap \
                   --set-default SAND_DATA_DIR ${sandUnwrapped}/share/sand \
                   --set-default SAND_SCHEMA ${sandUnwrapped}/share/sand/sand.toml.latest.schema.json
               '';

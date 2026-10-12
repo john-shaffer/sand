@@ -9,6 +9,7 @@
    [sand.core :as core]
    [sand.git :as git]
    [sand.log :as log]
+   [sand.sandbox :as sandbox]
    [sand.shell-env :as shell-env]
    [sand.util :as u]
    [toml-clj.core :as toml])
@@ -38,7 +39,10 @@
     :aliases ["fmt"]
     :args-usage "[FILE...]"
     :description "Format source files."
-    :spec file-spec}
+    :spec (assoc file-spec
+            :sandbox {:coerce :boolean
+                      :default true
+                      :desc "Run formatters in a sandbox, or not with --no-sandbox"})}
    {:name "shell"
     :description "Start a development shell."
     :spec file-spec}])
@@ -242,8 +246,9 @@
     (when-not (zero? exit-code)
       (exit exit-code))))
 
-(defn format-paths [{:keys [absolute-roots debug]} formatters repo paths]
+(defn format-paths [{:keys [absolute-roots debug sandbox]} formatters repo paths]
   (let [dir (or repo (fs/path "."))
+        root (fs/canonicalize dir)
         actions (for [path paths
                       :let [file-dir (-> path fs/canonicalize fs/parent)
                             formatter (core/formatter-for-file formatters file-dir (fs/file-name path))]
@@ -255,7 +260,15 @@
                              (cons (get formatter "package")
                                (get formatter "runtime-packages")))
         packages (set (mapcat (comp formatter-packages :formatter) actions))
-        nixpkgs-input (core/find-flake-nixpkgs dir)]
+        nixpkgs-input (core/find-flake-nixpkgs dir)
+        bwrap (when sandbox (sandbox/bwrap-command))]
+    (when sandbox
+      (binding [*out* *err*]
+        (when-not bwrap
+          (exit 1 "sand: bwrap not found, so formatters can't run in a sandbox. Use --no-sandbox to run them without one."))
+        (when-let [outside (seq (sandbox/outside-root root (map :fname actions)))]
+          (exit 1 (str "sand: with no git repo, only files under the current dir can be formatted in a sandbox. Use --no-sandbox to format "
+                    (str/join ", " outside))))))
     (core/with-dot-sand-dir [{:keys [dot-sand-dir temp?]} dir]
       (let [groups (for [[_ actions] (group-by :formatter-id actions)
                          :let [{:keys [formatter]} (first actions)]]
@@ -271,21 +284,30 @@
                   #(boolean (some (:missing-packages shell-env)
                               (formatter-packages (:formatter %))))
                   groups)
-            cmds (for [{:keys [cmds formatter]} runnable
+            cmds (for [{:keys [cmds fnames formatter]} runnable
+                       :let [formatter-env (update-vals (get formatter "env") str)]
                        cmd cmds]
                    {:cmd cmd
-                    :env (merge env (update-vals (get formatter "env") str))})
+                    :env (if sandbox
+                           (sandbox/env (:diff shell-env) formatter-env)
+                           (merge env formatter-env))
+                    :fnames (map fs/canonicalize fnames)})
             exit-code (try
                         (some
-                          (fn [{[cmd & args] :cmd cmd-env :env}]
+                          (fn [{[cmd & args] :cmd cmd-env :env fnames :fnames}]
                             (when debug
                               (log/debug (str "Running command: " (str/join " " (map u/shell-quote (cons cmd args))))))
                             (if-let [resolved (shell-env/resolve-command cmd-env cmd)]
-                              (let [proc (apply p/start
-                                           {:dir (str dir) :env cmd-env :err :inherit :out :inherit}
-                                           resolved
-                                           args)
-                                    exit-code @(p/exit-ref proc)]
+                              (let [exit-code (if sandbox
+                                                (sandbox/run!
+                                                  {:bwrap bwrap :cmd-env cmd-env
+                                                   :fnames fnames :root root}
+                                                  resolved args)
+                                                @(p/exit-ref
+                                                   (apply p/start
+                                                     {:dir (str dir) :env cmd-env :err :inherit :out :inherit}
+                                                     resolved
+                                                     args)))]
                                 (when-not (zero? exit-code)
                                   exit-code))
                               (do
