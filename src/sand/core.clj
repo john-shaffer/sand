@@ -197,12 +197,14 @@
                      (get (:by-extension formatters) (fs/extension fname)))]
     (some
       (fn [id]
-        (let [{:strs [args args-config config-filenames] :as formatter}
+        (let [{:strs [args args-config config-filenames parent-dirnames] :as formatter}
               (get (:by-id formatters) id)]
-          (when (or args
-                  (and args-config
-                    (seq config-filenames)
-                    (find-filename-up dir config-filenames)))
+          (when (and (or (empty? parent-dirnames)
+                       (some #{(fs/file-name dir)} parent-dirnames))
+                  (or args
+                    (and args-config
+                      (seq config-filenames)
+                      (find-filename-up dir config-filenames))))
             formatter)))
       (when (not-any? #(str/ends-with? fname (str "." %)) excluded-extensions)
         candidates))))
