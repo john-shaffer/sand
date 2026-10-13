@@ -1,0 +1,57 @@
+name = "PRJ_ROOT is the project root instead of the git repo or .sand dir"
+
+[setup.files."top.toml"]
+content = """
+top=1
+"""
+
+[setup.files."sub/a.toml"]
+content = """
+a=1
+"""
+
+[setup.files."sub/inner/b.toml"]
+content = """
+b=1
+"""
+
+[[steps]]
+# PRJ_ROOT is a subdir of the git repo. With no args, sand formats all of
+# PRJ_ROOT, not just the current dir, and keeps its .sand dir there.
+run = """
+git init -q . && git add . \
+  && cd sub/inner && PRJ_ROOT="$PWD/.." sand format \
+  && test -d ../.sand && test ! -e ../../.sand
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."top.toml"]
+content = """
+top=1
+"""
+
+[steps.expected.files."sub/a.toml"]
+content = """
+a = 1
+"""
+
+[steps.expected.files."sub/inner/b.toml"]
+content = """
+b = 1
+"""
+
+[[steps]]
+# Files outside PRJ_ROOT are an error
+run = """
+PRJ_ROOT="$PWD/sub" sand format top.toml 2> err; test $? = 1 && grep -q "outside PRJ_ROOT" err
+"""
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."top.toml"]
+content = """
+top=1
+"""

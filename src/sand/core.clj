@@ -143,15 +143,24 @@
     (when flake-lock
       (find-nixpkgs-input flake-lock))))
 
+(defn project-root
+  "Returns the canonical path in PRJ_ROOT, or nil if it isn't set. Tools
+   like `nix fmt` set it to the project's root dir."
+  ^Path []
+  (some-> (System/getenv "PRJ_ROOT") not-empty fs/canonicalize))
+
 (defn find-dot-sand-dir
-  "Finds a .sand dir searching upward. Finds either an existing .sand dir
-   or creates a path next to an existing .git dir, whichever is nearest.
-   Returns nil if neither is found."
+  "Returns the .sand dir in PRJ_ROOT, if it's set. Otherwise finds a .sand
+   dir searching upward: either an existing .sand dir or a path next to an
+   existing .git dir, whichever is nearest. Returns nil if neither is
+   found."
   ^Path [dir]
-  (when-let [found (find-filename-up dir [".sand" ".git"])]
-    (if (= ".sand" (str (fs/file-name found)))
-      found
-      (-> found fs/parent fs/canonicalize (fs/path ".sand")))))
+  (if-let [root (project-root)]
+    (fs/path root ".sand")
+    (when-let [found (find-filename-up dir [".sand" ".git"])]
+      (if (= ".sand" (str (fs/file-name found)))
+        found
+        (-> found fs/parent fs/canonicalize (fs/path ".sand"))))))
 
 (defn- formatter-fname
   "Returns the path to pass a formatter for fname. That's a path relative

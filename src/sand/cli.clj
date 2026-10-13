@@ -342,26 +342,36 @@
                          (map fs/path)
                          (filter fs/absolute?)
                          (map fs/canonicalize))
-        repo->paths (->> (or (seq arguments) ["."])
-                      (map fs/path)
-                      git/group-by-repos
+        prj-root (core/project-root)
+        paths (map fs/path (or (seq arguments) [(or prj-root ".")]))
+        expand-dirs (fn [root paths]
+                      (let [{dirs true files false} (group-by fs/directory? paths)]
+                        (concat
+                          files
+                          ; git ls-files with no pathspec lists the whole
+                          ; repo, so only call it when dirs were given.
+                          (when (seq dirs)
+                            ; git lists paths relative to the dir it runs in
+                            (map #(fs/path root %)
+                              (git/list-unignored-files
+                                {:dir (str root)}
+                                (map str dirs)))))))
+        ; PRJ_ROOT, when set, is the root instead of each path's git repo
+        repo->paths (if prj-root
+                      (if-let [outside (seq (remove #(fs/starts-with? (fs/canonicalize %) prj-root) paths))]
+                        (throw (u/user-error
+                                 (str "files outside PRJ_ROOT (" prj-root "): "
+                                   (str/join ", " outside))
+                                 1))
+                        {prj-root (expand-dirs prj-root paths)})
                       (reduce
                         (fn [m [repo paths]]
                           (assoc m repo
                             (if (nil? repo)
                               paths
-                              (let [{dirs true files false} (group-by fs/directory? paths)]
-                                (concat
-                                  files
-                                  ; git ls-files with no pathspec lists the whole
-                                  ; repo, so only call it when dirs were given.
-                                  (when (seq dirs)
-                                    ; git lists paths relative to the repo root
-                                    (map #(fs/path repo %)
-                                      (git/list-unignored-files
-                                        {:dir (str repo)}
-                                        (map str dirs)))))))))
-                        {}))]
+                              (expand-dirs repo paths))))
+                        {}
+                        (git/group-by-repos paths)))]
     (doseq [[repo paths] repo->paths]
       (when debug
         (if repo
