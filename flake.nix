@@ -110,12 +110,28 @@
                   --set-default SAND_DATA_DIR ${sandUnwrapped}/share/sand \
                   --set-default SAND_SCHEMA ${sandUnwrapped}/share/sand/sand.toml.latest.schema.json
               '';
+          # For `nix fmt`, which runs it with only the files as args
+          sandFormatter =
+            runCommand "sand-format"
+              {
+                meta = sandUnwrapped.meta // {
+                  mainProgram = "sand-format";
+                };
+                nativeBuildInputs = [ makeBinaryWrapper ];
+              }
+              ''
+                mkdir -p $out/bin
+                makeBinaryWrapper ${sandWrapped}/bin/sand $out/bin/sand-format \
+                  --add-flags format
+              '';
         in
         {
+          formatter = sandFormatter;
           packages = {
             default = sandWrapped;
             sand = sandWrapped;
             sand-data = sandDataDir;
+            sand-format = sandFormatter;
             sand-jar-app = sandJarApp;
             sand-unwrapped = sandUnwrapped;
           };
@@ -123,6 +139,7 @@
       );
     in
     {
+      formatter = builtins.mapAttrs (_: outputs: outputs.formatter) outputsBySystem;
       packages = builtins.mapAttrs (_: outputs: outputs.packages) outputsBySystem;
     };
 }
