@@ -32,11 +32,15 @@
             ".clj"
             ".edn"
           ];
-          sandData = lib.sources.sourceFilesBySuffices self [
-            ".json"
-            ".nix"
-            ".toml"
-          ];
+          # Only what sandDataDir copies, so that changes to other files,
+          # like tests, don't rebuild it
+          sandData = lib.fileset.toSource {
+            root = ./.;
+            fileset = lib.fileset.unions [
+              ./data/sand
+              ./schema/sand.toml.latest.schema.json
+            ];
+          };
           sandBin = clj-nix.lib.mkCljApp {
             pkgs = nixpkgs.legacyPackages.${system};
             modules = [
