@@ -1,0 +1,21 @@
+name = "Format Java file"
+
+[setup.files."main.java"]
+content = """
+void main() {
+println("Hello World");
+}
+"""
+
+[[steps]]
+run = "sand format main.java"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."main.java"]
+content = """
+void main() {
+  println("Hello World");
+}
+"""

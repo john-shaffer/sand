@@ -36,6 +36,11 @@ bin-name = "gofmt"
 extensions = ["go"]
 package = "go"
 
+[google-java-format]
+args = ["-i", "*@"]
+extensions = ["java"]
+package = "google-java-format"
+
 [hujsonfmt]
 args = ["-w", "*@"]
 extensions = ["hujson"]
