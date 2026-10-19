@@ -17,9 +17,7 @@
     };
   };
   outputs =
-    inputs:
-    with inputs;
-    {
+    inputs: with inputs; {
       devShells = nixpkgs.lib.genAttrs (builtins.attrNames sand.packages) (
         system:
         let
