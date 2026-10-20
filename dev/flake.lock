@@ -56,11 +56,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791238453,
-        "narHash": "sha256-YgeVmcB3xt3A0HqMrY6nP8GI2UzPgLI7/jgv/vYL6xo=",
+        "lastModified": 1792548342,
+        "narHash": "sha256-TTh/sbfnsl76exSsOhdMUCAcyGl/f2gmb6TwBNuAdIE=",
         "owner": "john-shaffer",
         "repo": "finefile",
-        "rev": "73fa0ed483c3d1dd0a292ab89d1f85d5ca932815",
+        "rev": "26433c4c7252c4f3fd86038d0d068ade75706e8a",
         "type": "github"
       },
       "original": {
@@ -115,12 +115,12 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1792295010,
-        "narHash": "sha256-F7meJtbqGttmUoMmYjRRgkVs42sn7bh7vvRvLPlUN98=",
-        "rev": "8ce73368d1efd4d657e9064d29b144a52046b4e8",
-        "revCount": 1016483,
+        "lastModified": 1792503283,
+        "narHash": "sha256-vhe2jyvRCgufWPqDuDq1S3t3ypE+ka46IFutV02xKso=",
+        "rev": "cd4ea8d57de16f4810bc5f14207bac45fbf19f67",
+        "revCount": 1016588,
         "type": "tarball",
-        "url": "https://api.flakehub.com/f/pinned/NixOS/nixpkgs/0.2605.1016483%2Brev-8ce73368d1efd4d657e9064d29b144a52046b4e8/01a152b1-20ea-7923-b3db-289aa2c62bd5/source.tar.gz"
+        "url": "https://api.flakehub.com/f/pinned/NixOS/nixpkgs/0.2605.1016588%2Brev-cd4ea8d57de16f4810bc5f14207bac45fbf19f67/01a15a66-c0c8-7d12-a22b-b520ae972e17/source.tar.gz"
       },
       "original": {
         "type": "tarball",
@@ -191,11 +191,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791213601,
-        "narHash": "sha256-ziWMREwlwjosxkcDmuey+6oemjIlP++Yf9doQCzsWto=",
+        "lastModified": 1792446819,
+        "narHash": "sha256-XJ1NmPxyHNfhTXRJWzHNDNML47eYL5cQbd/w3pwKq88=",
         "owner": "john-shaffer",
         "repo": "sand",
-        "rev": "1ec911a455415f24ed9406755d1328df82e2443f",
+        "rev": "7b82e73add253f3a082536356879e31063645c95",
         "type": "github"
       },
       "original": {
@@ -215,11 +215,11 @@
         "sand": "sand_2"
       },
       "locked": {
-        "lastModified": 1791214283,
-        "narHash": "sha256-VgORdgviy6BAfFYY/OW35/BRAnc4L+YLSeBmR7+klaE=",
+        "lastModified": 1792548879,
+        "narHash": "sha256-Yx/kOeoJcAqJN8sc40kM1lVeVGeS5yGt7UamVjkyQ9E=",
         "owner": "john-shaffer",
         "repo": "tact",
-        "rev": "ff4a89da51bf7030ab4a688a67d1b8500bf9543a",
+        "rev": "505ffb1a9fb352a237fec7ed026c12fd7cfa187d",
         "type": "github"
       },
       "original": {
