@@ -1,0 +1,29 @@
+name = "Minified JavaScript files are not formatted"
+
+[setup.files."app.js"]
+content = """
+function hello(name){return "Hello, "+name}
+"""
+
+[setup.files."app.min.js"]
+content = """
+function hello(name){return "Hello, "+name}
+"""
+
+[[steps]]
+run = "sand format app.js app.min.js"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."app.js"]
+content = """
+function hello(name) {
+  return "Hello, " + name;
+}
+"""
+
+[steps.expected.files."app.min.js"]
+content = """
+function hello(name){return "Hello, "+name}
+"""

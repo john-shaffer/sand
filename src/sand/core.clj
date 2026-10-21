@@ -12,6 +12,12 @@
 (def ^{:private true}
   default-priority 5)
 
+(def ^{:private true
+       :doc "Extensions of files that aren't formatted, even if they end with
+             a formatter's extension. E.g., minified build output."}
+  excluded-extensions
+  ["min.css" "min.js"])
+
 (defn- sort-by-priority
   "Returns m with each value replaced by a priority-sorted vector of ids.
    Throws if any two ids share the same priority."
@@ -198,7 +204,8 @@
                     (seq config-filenames)
                     (find-filename-up dir config-filenames)))
             formatter)))
-      candidates)))
+      (when (not-any? #(str/ends-with? fname (str "." %)) excluded-extensions)
+        candidates))))
 
 (defn generate-sand-json
   "Generates a sand.json file. `existing` may be nil or pre-existing data.
