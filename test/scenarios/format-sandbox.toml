@@ -52,12 +52,14 @@ original
 
 [[steps]]
 run = """
-cd repo && SAND_DATA_DIR="$PWD/../data" SAND_TEST_VAR=leaked sand format --no-sandbox a.zz \
-  && grep -q "read-outside leaked" a.zz
+cd repo && SAND_DATA_DIR="$PWD/../data" SAND_TEST_VAR=leaked sand format --no-sandbox a.zz
 """
 
 [steps.expected]
 exit-code = 0
+
+[steps.expected.files."repo/a.zz"]
+matches = '^\S+ read-outside leaked$'
 
 [steps.expected.files."repo/other.txt"]
 content = """

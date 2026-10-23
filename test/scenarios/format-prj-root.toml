@@ -20,12 +20,17 @@ b=1
 # PRJ_ROOT, not just the current dir, and keeps its .sand dir there.
 run = """
 git init -q . && git add . \
-  && cd sub/inner && PRJ_ROOT="$PWD/.." sand format \
-  && test -d ../.sand && test ! -e ../../.sand
+  && cd sub/inner && PRJ_ROOT="$PWD/.." sand format
 """
 
 [steps.expected]
 exit-code = 0
+
+[steps.expected.files.".sand"]
+exists = false
+
+[steps.expected.files."sub/.sand"]
+exists = true
 
 [steps.expected.files."top.toml"]
 content = """
@@ -44,12 +49,11 @@ b = 1
 
 [[steps]]
 # Files outside PRJ_ROOT are an error
-run = """
-PRJ_ROOT="$PWD/sub" sand format top.toml 2> err; test $? = 1 && grep -q "outside PRJ_ROOT" err
-"""
+run = 'PRJ_ROOT="$PWD/sub" sand format top.toml'
 
 [steps.expected]
-exit-code = 0
+exit-code = 1
+stderr-contains = "outside PRJ_ROOT"
 
 [steps.expected.files."top.toml"]
 content = """

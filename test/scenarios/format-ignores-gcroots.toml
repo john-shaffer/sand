@@ -6,7 +6,7 @@ a=1
 """
 
 [[steps]]
-run = "git init -q . && git add a.toml && sand format a.toml && test -d .sand/gcroots && ! git status --porcelain --untracked-files=all | grep 'gcroots\\|lock'"
+run = "git init -q . && git add a.toml && sand format a.toml"
 
 [steps.expected]
 exit-code = 0
@@ -22,3 +22,12 @@ content = """
 content = """
 a = 1
 """
+
+[steps.expected.files.".sand/gcroots"]
+exists = true
+
+[[steps]]
+run = "git status --porcelain --untracked-files=all"
+
+[steps.expected]
+stdout-not-contains = ["gcroots", "lock"]

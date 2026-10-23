@@ -16,14 +16,16 @@ run = """
 mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
   && printf '[nopkg]\\nargs = ["*@"]\\nextensions = ["zz"]\\npackage = "no-such-package-xyz"\\n' >> data/formatters.toml \
   && git init -q . && git add a.toml b.zz \
-  && { SAND_DATA_DIR="$PWD/data" sand format b.zz a.toml 2> err; test $? = 1; } \
-  && grep -q "sand: warning: package 'no-such-package-xyz' isn't in" err \
-  && ! grep -q "command not found" err \
-  && ! grep -qs no-such-package .sand/sand.json
+  && SAND_DATA_DIR="$PWD/data" sand format b.zz a.toml
 """
 
 [steps.expected]
-exit-code = 0
+exit-code = 1
+stderr-contains = "sand: warning: package 'no-such-package-xyz' isn't in"
+stderr-not-contains = "command not found"
+
+[steps.expected.files.".sand/sand.json"]
+not-contains = "no-such-package"
 
 [steps.expected.files."a.toml"]
 content = """

@@ -11,15 +11,23 @@ b=2
 """
 
 [[steps]]
-run = "sand --debug format a.toml > out1 && sand format b.toml --debug > out2 && grep -q 'Running command' out1 && grep -q 'Running command' out2"
+run = "sand --debug format a.toml"
 
 [steps.expected]
 exit-code = 0
+stdout-contains = "Running command"
 
 [steps.expected.files."a.toml"]
 content = """
 a = 1
 """
+
+[[steps]]
+run = "sand format b.toml --debug"
+
+[steps.expected]
+exit-code = 0
+stdout-contains = "Running command"
 
 [steps.expected.files."b.toml"]
 content = """

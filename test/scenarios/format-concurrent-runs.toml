@@ -18,11 +18,11 @@ content = """
 [[steps]]
 run = """
 git init -q . && git add . \
-  && { sand format a.toml & sand format b.json & sand format c.nix & wait; } \
-  && grep -q '"taplo"' .sand/sand.json \
-  && grep -q '"jsonfmt"' .sand/sand.json \
-  && grep -q '"nixfmt"' .sand/sand.json
+  && { sand format a.toml & sand format b.json & sand format c.nix & wait; }
 """
 
 [steps.expected]
 exit-code = 0
+
+[steps.expected.files.".sand/sand.json"]
+contains = ['"jsonfmt"', '"nixfmt"', '"taplo"']

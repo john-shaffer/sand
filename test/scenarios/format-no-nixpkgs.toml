@@ -8,15 +8,22 @@ a=1
 [[steps]]
 # The source data dir's shell.nix has no fallback nixpkgs, and an empty
 # NIX_PATH leaves only the channel dirs, which must not have nixpkgs.
+run = "NIX_PATH= nix-instantiate --eval -E '(builtins.tryEval <nixpkgs>).success'"
+
+[steps.expected]
+stdout = """
+false
+"""
+
+[[steps]]
 run = """
 git init -q . && git add a.toml \
-  && NIX_PATH= nix-instantiate --eval -E '(builtins.tryEval <nixpkgs>).success' | grep -qx false \
-  && { NIX_PATH= SAND_DATA_DIR="$SAND_SOURCE_DATA_DIR" sand format a.toml 2> err; test $? = 1; } \
-  && grep -q "sand: no nixpkgs found" err
+  && NIX_PATH= SAND_DATA_DIR="$SAND_SOURCE_DATA_DIR" sand format a.toml
 """
 
 [steps.expected]
-exit-code = 0
+exit-code = 1
+stderr-contains = "sand: no nixpkgs found"
 
 [steps.expected.files."a.toml"]
 content = """

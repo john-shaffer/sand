@@ -58,10 +58,13 @@ a=1
 """
 
 [[steps]]
-run = "git init -q . && git add . && sand format a.toml && grep -q c508844df6c28fa6dabc1b6af70f3ccbd65c5201 .sand/sand.json"
+run = "git init -q . && git add . && sand format a.toml"
 
 [steps.expected]
 exit-code = 0
+
+[steps.expected.files.".sand/sand.json"]
+contains = "c508844df6c28fa6dabc1b6af70f3ccbd65c5201"
 
 [steps.expected.files."a.toml"]
 content = """

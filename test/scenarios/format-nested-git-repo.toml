@@ -11,7 +11,7 @@ a=1
 """
 
 [[steps]]
-run = "git init -q inner && cd inner && git add . && sand format a.toml && test -f .sand/sand.json"
+run = "git init -q inner && cd inner && git add . && sand format a.toml"
 
 [steps.expected]
 exit-code = 0
@@ -20,6 +20,9 @@ exit-code = 0
 content = """
 {}
 """
+
+[steps.expected.files."inner/.sand/sand.json"]
+exists = true
 
 [steps.expected.files."inner/a.toml"]
 content = """

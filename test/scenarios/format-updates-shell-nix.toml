@@ -12,10 +12,13 @@ a=1
 """
 
 [[steps]]
-run = "git init -q . && git add a.toml && sand format a.toml && ! grep -q outdated .sand/shell.nix"
+run = "git init -q . && git add a.toml && sand format a.toml"
 
 [steps.expected]
 exit-code = 0
+
+[steps.expected.files.".sand/shell.nix"]
+not-contains = "outdated"
 
 [steps.expected.files."a.toml"]
 content = """
