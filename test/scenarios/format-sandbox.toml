@@ -1,5 +1,9 @@
 name = "Formatters run in a sandbox unless --no-sandbox is given"
 
+[env]
+SAND_DATA_DIR = "${TACT_WORK_DIR}/data"
+SAND_TEST_VAR = "leaked"
+
 [setup.files."outside"]
 content = """
 secret
@@ -34,7 +38,7 @@ run = """
 mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
   && cat formatter.toml >> data/formatters.toml \
   && cd repo && git init -q . && git add . \
-  && SAND_DATA_DIR="$PWD/../data" SAND_TEST_VAR=leaked sand format a.zz
+  && sand format a.zz
 """
 
 [steps.expected]
@@ -51,9 +55,7 @@ original
 """
 
 [[steps]]
-run = """
-cd repo && SAND_DATA_DIR="$PWD/../data" SAND_TEST_VAR=leaked sand format --no-sandbox a.zz
-"""
+run = "cd repo && sand format --no-sandbox a.zz"
 
 [steps.expected]
 exit-code = 0

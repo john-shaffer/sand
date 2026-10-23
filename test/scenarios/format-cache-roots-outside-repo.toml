@@ -11,11 +11,10 @@ b=2
 """
 
 [[steps]]
-run = """
-export SAND_CACHE_DIR="$(mktemp -d)" \
-  && sand format a.toml \
-  && find /nix/var/nix/gcroots/auto -lname "$SAND_CACHE_DIR/*" | grep -q .
-"""
+run = "sand format a.toml"
+
+[steps.env]
+SAND_CACHE_DIR = "${TACT_WORK_DIR}/outside-cache"
 
 [steps.expected]
 exit-code = 0
@@ -26,11 +25,16 @@ a = 1
 """
 
 [[steps]]
-run = """
-export SAND_CACHE_DIR="$(mktemp -d)" \
-  && cd repo && git init -q . && git add b.toml && sand format b.toml \
-  && ! find /nix/var/nix/gcroots/auto -lname "$SAND_CACHE_DIR/*" | grep -q .
-"""
+run = 'find /nix/var/nix/gcroots/auto -lname "$TACT_WORK_DIR/outside-cache/*"'
+
+[steps.expected]
+stdout-matches = "."
+
+[[steps]]
+run = "cd repo && git init -q . && git add b.toml && sand format b.toml"
+
+[steps.env]
+SAND_CACHE_DIR = "${TACT_WORK_DIR}/repo-cache"
 
 [steps.expected]
 exit-code = 0
@@ -39,3 +43,9 @@ exit-code = 0
 content = """
 b = 2
 """
+
+[[steps]]
+run = 'find /nix/var/nix/gcroots/auto -lname "$TACT_WORK_DIR/repo-cache/*"'
+
+[steps.expected]
+stdout = ""
