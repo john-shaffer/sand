@@ -1,0 +1,39 @@
+name = "Format JSON files in vicinae and Zed config dirs as JSONC"
+
+[setup.files.".config/vicinae/settings.json"]
+content = """
+{
+  // Theme
+  "theme":{"name":"dark"},
+}
+"""
+
+[setup.files.".config/zed/settings.json"]
+content = """
+{
+  // Theme
+  "theme":"One Dark",
+}
+"""
+
+[[steps]]
+run = "sand format .config/vicinae/settings.json .config/zed/settings.json"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files.".config/vicinae/settings.json"]
+content = """
+{
+  // Theme
+  "theme": { "name": "dark" },
+}
+"""
+
+[steps.expected.files.".config/zed/settings.json"]
+content = """
+{
+  // Theme
+  "theme": "One Dark",
+}
+"""

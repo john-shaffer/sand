@@ -124,6 +124,22 @@ filenames = [
 ]
 package = "prettier"
 
+# Apps that read every .json file in their config dir as JSONC. These take
+# precedence over jsonfmt for files directly in a dir with one of these names.
+# - vicinae reads settings.json and the files it imports with a JSONC parser
+#   (read_file_jsonc in src/server/src/config/config.cpp):
+#   https://github.com/vicinaehq/vicinae
+# - Zed reads settings.json, keymap.json, etc. as JSONC. Its default
+#   file_types setting maps **/.zed/**/*.json, **/zed/**/*.json and
+#   **/Zed/**/*.json to JSONC: https://zed.dev/docs/configuring-zed
+[prettier-jsonc-dirs]
+args = ["--write", "--ignore-path", "/dev/null", "--parser", "jsonc", "*@"]
+bin-name = "prettier"
+extensions = ["json"]
+package = "prettier"
+parent-dirnames = [".zed", "Zed", "vicinae", "zed"]
+priority = 3
+
 # VS Code reads every .json file in a .vscode dir (settings.json,
 # launch.json, etc.) as JSONC. This takes precedence over jsonfmt for
 # those files only.
