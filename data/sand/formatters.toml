@@ -101,6 +101,10 @@ package = "prettier"
 # some of these files.
 # - tsconfig.json and jsconfig.json are read by TypeScript.
 # - devcontainer.json and .devcontainer.json are read by Dev Containers.
+# - .eslintrc.json is read by ESLint, which allows JavaScript-style comments:
+#   https://eslint.org/docs/v8.x/use/configure/configuration-files
+# - .babelrc.json and babel.config.json are read by Babel as JSON5:
+#   https://babeljs.io/docs/config-files
 # - appsettings.json is read by ASP.NET Core, which allows comments in it:
 #   https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/
 # - .code-workspace files are read by VS Code.
@@ -109,8 +113,11 @@ args = ["--write", "--ignore-path", "/dev/null", "--parser", "jsonc", "*@"]
 bin-name = "prettier"
 extensions = ["code-workspace", "jsonc"]
 filenames = [
+  ".babelrc.json",
   ".devcontainer.json",
+  ".eslintrc.json",
   "appsettings.json",
+  "babel.config.json",
   "devcontainer.json",
   "jsconfig.json",
   "tsconfig.json",
