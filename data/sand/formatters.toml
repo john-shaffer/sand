@@ -101,6 +101,8 @@ package = "prettier"
 # some of these files.
 # - tsconfig.json and jsconfig.json are read by TypeScript.
 # - devcontainer.json and .devcontainer.json are read by Dev Containers.
+# - appsettings.json is read by ASP.NET Core, which allows comments in it:
+#   https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/
 # - .code-workspace files are read by VS Code.
 [prettier-jsonc]
 args = ["--write", "--ignore-path", "/dev/null", "--parser", "jsonc", "*@"]
@@ -108,6 +110,7 @@ bin-name = "prettier"
 extensions = ["code-workspace", "jsonc"]
 filenames = [
   ".devcontainer.json",
+  "appsettings.json",
   "devcontainer.json",
   "jsconfig.json",
   "tsconfig.json",
