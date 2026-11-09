@@ -75,22 +75,38 @@ let
     else
       null;
   shellPkgs = builtins.partition (name: resolvePkg name != null) (data.shellPkgs or [ ]);
+  # Flake packages, for tools that aren't in nixpkgs yet. Each entry has a
+  # locked ref with a narHash, so only the vetted source is fetched. The
+  # flake keeps its own nixpkgs input.
+  flakePkg =
+    entry:
+    let
+      flake = builtins.getFlake (builtins.flakeRefToString entry.locked);
+    in
+    flake.packages.${builtins.currentSystem}.${entry.package} or null;
+  flakePkgs = builtins.partition (name: flakePkg data.flakes.${name} != null) (
+    builtins.attrNames (data.flakes or { })
+  );
+  missing = {
+    nixpkgs = pkgsDescription;
+    packages = shellPkgs.wrong;
+    flakes = flakePkgs.wrong;
+  };
 in
 pkgs'.mkShell (
   {
-    buildInputs = map (name: pkgs'.${resolvePkg name}) shellPkgs.right;
+    buildInputs =
+      map (name: pkgs'.${resolvePkg name}) shellPkgs.right
+      ++ map (name: flakePkg data.flakes.${name}) flakePkgs.right;
   }
   # sand reads this to warn about the missing packages and skip what
   # needs them.
   // (
-    if shellPkgs.wrong == [ ] then
+    if shellPkgs.wrong == [ ] && flakePkgs.wrong == [ ] then
       { }
     else
       {
-        SAND_MISSING_PKGS = builtins.toJSON {
-          nixpkgs = pkgsDescription;
-          packages = shellPkgs.wrong;
-        };
+        SAND_MISSING_PKGS = builtins.toJSON missing;
       }
   )
 )

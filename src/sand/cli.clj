@@ -182,14 +182,16 @@
    shell-env with them as :missing-packages, and without the variable
    that listed them in its :env."
   [shell-env]
-  (let [{:strs [nixpkgs packages]} (some-> (get-in shell-env [:env "SAND_MISSING_PKGS"])
-                                     json/read-str)]
+  (let [{:strs [flakes nixpkgs packages]} (some-> (get-in shell-env [:env "SAND_MISSING_PKGS"])
+                                            json/read-str)]
     (binding [*out* *err*]
       (doseq [package packages]
-        (println (str "sand: warning: package '" package "' isn't in " nixpkgs))))
+        (println (str "sand: warning: package '" package "' isn't in " nixpkgs)))
+      (doseq [flake flakes]
+        (println (str "sand: warning: flake package '" flake "' isn't available for this system"))))
     (-> shell-env
       (update :env dissoc "SAND_MISSING_PKGS")
-      (assoc :missing-packages (set packages)))))
+      (assoc :missing-packages (set (concat packages flakes))))))
 
 (defn- load-shell-env!
   "Returns the shell environment for dot-sand-dir, as returned by
@@ -259,7 +261,15 @@
         formatter-packages (fn [formatter]
                              (cons (get formatter "package")
                                (get formatter "runtime-packages")))
+        ; Everything that a formatter needs, as named in :missing-packages
+        formatter-needs (fn [formatter]
+                          (cons (core/flake-name formatter)
+                            (formatter-packages formatter)))
         packages (set (mapcat (comp formatter-packages :formatter) actions))
+        flakes (into {}
+                 (for [{:keys [formatter]} actions
+                       :when (get formatter "flake")]
+                   [(core/flake-name formatter) (core/flake-entry formatter)]))
         nixpkgs-input (core/find-flake-nixpkgs dir)
         bwrap (when sandbox (sandbox/bwrap-command))]
     (when sandbox
@@ -277,12 +287,12 @@
                       :formatter formatter})
             shell-env (when (seq groups)
                         (load-shell-env! dot-sand-dir temp?
-                          {:nixpkgs-input nixpkgs-input :packages packages}))
+                          {:flakes flakes :nixpkgs-input nixpkgs-input :packages packages}))
             env (:env shell-env)
             {skipped true runnable false}
             #__ (group-by
                   #(boolean (some (:missing-packages shell-env)
-                              (formatter-packages (:formatter %))))
+                              (formatter-needs (:formatter %))))
                   groups)
             cmds (for [{:keys [cmds fnames formatter]} runnable
                        :let [formatter-env (update-vals (get formatter "env") str)]

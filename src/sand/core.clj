@@ -36,9 +36,42 @@
                   {:ids [a b] :priority pa})))))
         sorted))))
 
+(defn flake-name
+  "Returns the name that a formatter's flake package is known by, or nil
+   if it doesn't come from a flake. The flake's ref, which is only for
+   reference, is part of the name so that people can recognize it."
+  [{:strs [flake flake-package]}]
+  (when flake
+    (str flake "#" (or flake-package "default"))))
+
+(defn flake-entry
+  "Returns the sand.json entry for the flake package of formatter. Only
+   its locked ref decides what is fetched. The flake's ref (e.g., a tag)
+   is never used, because it can be moved to a different commit."
+  [{:strs [flake-lock flake-package]}]
+  {"locked" flake-lock
+   "package" (or flake-package "default")})
+
+(defn- check-formatter
+  "Throws if formatter's package settings are invalid."
+  [{:as formatter :strs [bin-name flake flake-lock id package]}]
+  (let [fail (fn [msg]
+               (throw (ex-info (str "Invalid formatter " id ": " msg)
+                        {:formatter formatter})))]
+    (when (and flake package)
+      (fail "flake and package can't both be set"))
+    (when flake
+      (when-not (map? flake-lock)
+        (fail "flake requires flake-lock, the locked ref to use"))
+      (when-not (get flake-lock "narHash")
+        (fail "flake-lock requires narHash"))
+      (when-not bin-name
+        (fail "flake requires bin-name")))))
+
 (defn- compile-formatter [k {:as m :strs [priority]}]
-  (cond-> (assoc m "id" k)
-    (not priority) (assoc "priority" default-priority)))
+  (doto (cond-> (assoc m "id" k)
+          (not priority) (assoc "priority" default-priority))
+    check-formatter))
 
 (defn compile-formatters [data]
   (let [by-id (reduce-kv
@@ -240,13 +273,25 @@
       (when (not-any? #(str/ends-with? fname (str "." %)) excluded-extensions)
         candidates))))
 
+(defn- merge-flakes
+  "Returns sand.json data with flakes added to its flakes, and
+   missing-names removed. The flakes key is left out if none remain."
+  [data flakes missing-names]
+  (let [merged (apply dissoc (merge (get data "flakes") flakes) missing-names)]
+    (if (seq merged)
+      (assoc data "flakes" merged)
+      (dissoc data "flakes"))))
+
 (defn generate-sand-json
   "Generates a sand.json file. `existing` may be nil or pre-existing data.
-   `missing-packages` are removed from the existing packages, and not
-   added from `packages`."
-  [existing {:keys [missing-packages nixpkgs-input packages]}]
+   `missing-packages` are removed from the existing packages and flakes,
+   and not added from `packages` and `flakes`. `flakes` maps flake names to
+   entries."
+  [existing {:keys [flakes missing-packages nixpkgs-input packages]}]
   (cond-> (or existing {})
     nixpkgs-input (assoc "nixpkgs" nixpkgs-input)
+    (or (seq flakes) (get existing "flakes"))
+    (merge-flakes flakes missing-packages)
     (or (seq packages) (seq missing-packages))
     (assoc "shellPkgs"
       (->> packages

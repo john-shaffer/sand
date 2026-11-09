@@ -9,6 +9,14 @@
 #   to strings.
 # extensions: List of file extensions this formatter works on.
 # filenames: List of exact filenames this formatter works on.
+# flake: A flake ref for the package, for tools that aren't in nixpkgs yet.
+#   Only for reference when updating: it's never fetched, because a tag can be
+#   moved. Requires bin-name and flake-lock, and excludes package.
+# flake-lock: What is fetched instead of flake. A table with the type, narHash,
+#   and the rest of the locked ref, like owner, repo and rev for github.
+#   Get it from `nix flake metadata --json <flake>`, under "locked".
+# flake-package: The package in the flake's packages.<system>. Default is
+#   "default".
 # package: The name of the package in nixpkgs. See https://search.nixos.org.
 # parent-dirnames: List of directory names. If given, the formatter only works
 #   on files whose parent directory has one of these names.

@@ -212,7 +212,8 @@
           proc (p/start
                  {:env (assoc (nix-env) "NIX_BUILD_SHELL" build-shell)
                   :err :inherit}
-                 "nix-shell" (str (fs/path tmp "shell.nix"))
+                 "nix-shell" "--extra-experimental-features" "flakes"
+                 (str (fs/path tmp "shell.nix"))
                  "--run" (str "env -0 > " (u/shell-quote env-file)
                            " && echo " ready " && read -r _"))
           out (io/reader (p/stdout proc))

@@ -1,0 +1,43 @@
+name = "A formatter from a locked flake is run, ignoring the flake's tag"
+
+# The flake is a local path flake, so the test needs no network. Its
+# package is a script that writes "formatted" to each file it is given.
+# The flake's ref is only for reference. It's the locked ref that is used.
+[setup.files."a.zz"]
+content = """
+a
+"""
+
+[setup.files."flake-fixture/flake.nix"]
+content = """
+{
+  outputs = _: {
+    packages.${builtins.currentSystem}.default = derivation {
+      name = "zzfmt";
+      system = builtins.currentSystem;
+      builder = "${builtins.storePath (builtins.dirOf (builtins.dirOf (builtins.getEnv "BASH_BIN")))}/bin/bash";
+      args = [ "-c" "export PATH=${builtins.storePath (builtins.dirOf (builtins.dirOf (builtins.getEnv "CU_BIN")))}/bin; mkdir -p $out/bin; printf '#!%s\\\\nfor f; do echo formatted > \\"$f\\"; done\\\\n' \\"$BASH_BIN\\" > $out/bin/zzfmt; chmod +x $out/bin/zzfmt" ];
+      BASH_BIN = builtins.getEnv "BASH_BIN";
+    };
+  };
+}
+"""
+
+[[steps]]
+run = """
+export BASH_BIN="$(realpath "$(command -v bash)")" CU_BIN="$(realpath "$(command -v mkdir)")"
+hash="$(nix hash path --sri flake-fixture)"
+mkdir data && cp "$SAND_SOURCE_DATA_DIR"/* data/ && chmod u+w data/* \
+  && printf '[zz]\\nargs = ["*@"]\\nbin-name = "zzfmt"\\nextensions = ["zz"]\\nflake = "path:flake-fixture/v1"\\nflake-lock = { type = "path", path = "'"$PWD"'/flake-fixture", narHash = "'"$hash"'" }\\n' >> data/formatters.toml \
+  && git init -q . && git add a.zz \
+  && SAND_DATA_DIR="$PWD/data" sand format a.zz
+"""
+
+[steps.expected]
+exit-code = 0
+stderr-not-contains = "warning"
+
+[steps.expected.files."a.zz"]
+content = """
+formatted
+"""
