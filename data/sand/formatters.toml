@@ -139,21 +139,28 @@ filenames = [
 ]
 package = "prettier"
 
-# Apps that read every .json file in their config dir as JSONC. These take
-# precedence over jsonfmt for files directly in a dir with one of these names.
-# - vicinae reads settings.json and the files it imports with a JSONC parser
-#   (read_file_jsonc in src/server/src/config/config.cpp):
-#   https://github.com/vicinaehq/vicinae
-# - Zed reads settings.json, keymap.json, etc. as JSONC. Its default
-#   file_types setting maps **/.zed/**/*.json, **/zed/**/*.json and
-#   **/Zed/**/*.json to JSONC: https://zed.dev/docs/configuring-zed
+# Zed reads settings.json, keymap.json, etc. as JSONC. Its default
+# file_types setting maps **/.zed/**/*.json, **/zed/**/*.json and
+# **/Zed/**/*.json to JSONC: https://zed.dev/docs/configuring-zed
+# Trailing commas are allowed, so prettier may leave them in place.
 [prettier-jsonc-dirs]
 args = ["--write", "--ignore-path", "/dev/null", "--parser", "jsonc", "*@"]
 bin-name = "prettier"
 extensions = ["json"]
 package = "prettier"
-parent-dirnames = [".zed", "Zed", "vicinae", "zed"]
+parent-dirnames = [".zed", "Zed", "zed"]
 priority = 3
+
+# vicinae reads settings.json and the files it imports with a JSONC parser
+# that rejects trailing commas (read_file_jsonc in
+# src/server/src/config/config.cpp): https://github.com/vicinaehq/vicinae
+[prettier-jsonc-no-trailing-commas-dirs]
+args = ["--write", "--ignore-path", "/dev/null", "--parser", "jsonc", "--trailing-comma", "none", "*@"]
+bin-name = "prettier"
+extensions = ["json"]
+package = "prettier"
+parent-dirnames = ["vicinae"]
+priority = 2
 
 # VS Code reads every .json file in a .vscode dir (settings.json,
 # launch.json, etc.) as JSONC. This takes precedence over jsonfmt for

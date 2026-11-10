@@ -26,7 +26,7 @@ exit-code = 0
 content = """
 {
   // Theme
-  "theme": { "name": "dark" },
+  "theme": { "name": "dark" }
 }
 """
 
