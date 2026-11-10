@@ -157,7 +157,7 @@ bin-name = "prettier"
 extensions = ["json"]
 package = "prettier"
 parent-dirnames = [".vscode"]
-priority = 3
+priority = 4
 
 [pretty-php]
 args = ["*@"]
