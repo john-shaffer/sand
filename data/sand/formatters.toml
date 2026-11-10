@@ -77,6 +77,13 @@ args = ["-i", "*@"]
 extensions = ["java"]
 package = "google-java-format"
 
+[haxe-formatter]
+args = ["-s", "*@"]
+bin-name = "haxe-formatter"
+extensions = ["hx"]
+flake = "github:john-shaffer/haxe-formatter-flake"
+flake-lock = { narHash = "sha256-q8FhX7mTzGPnlXeDRw1LocAaAn40vtlH365MzNCOwLk=", owner = "john-shaffer", repo = "haxe-formatter-flake", rev = "4c86f0039e87c8782d543caebdb0067fb43396b1", type = "github" }
+
 [hujsonfmt]
 args = ["-w", "*@"]
 extensions = ["hujson"]
