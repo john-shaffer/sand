@@ -1,0 +1,36 @@
+name = "standard-clj skips files ignored by .standard-clj.edn"
+
+[setup.files.".standard-clj.edn"]
+content = """
+{:ignore ["ignored.clj"]}
+"""
+
+[setup.files."ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[setup.files."formatted.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[[steps]]
+run = "sand format ignored.clj formatted.clj"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[steps.expected.files."formatted.clj"]
+content = """
+(defn f [x]
+  x)
+"""

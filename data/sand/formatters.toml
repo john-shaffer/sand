@@ -155,7 +155,16 @@ priority = 3
 # that rejects trailing commas (read_file_jsonc in
 # src/server/src/config/config.cpp): https://github.com/vicinaehq/vicinae
 [prettier-jsonc-no-trailing-commas-dirs]
-args = ["--write", "--ignore-path", "/dev/null", "--parser", "jsonc", "--trailing-comma", "none", "*@"]
+args = [
+  "--write",
+  "--ignore-path",
+  "/dev/null",
+  "--parser",
+  "jsonc",
+  "--trailing-comma",
+  "none",
+  "*@",
+]
 bin-name = "prettier"
 extensions = ["json"]
 package = "prettier"
@@ -184,6 +193,15 @@ args-config = ["--config-path", "{{config}}", "*@"]
 config-filenames = ["rustfmt.toml", ".rustfmt.toml"]
 extensions = ["rs"]
 package = "rustfmt"
+
+[standard-clj]
+args = ["fix", "*@"]
+args-config = ["--config", "{{config}}", "fix", "*@"]
+bin-name = "standard-clj"
+config-filenames = [".standard-clj.edn", ".standard-clj.json"]
+extensions = ["clj", "cljc", "cljs", "edn", "jank"]
+flake = "github:john-shaffer/standard-clojure-style-haxe"
+flake-lock = { narHash = "sha256-s8Y12zed5V+xvfuqXCTqnLbtT8AS5eHpbqoqWZhx9cU=", owner = "john-shaffer", repo = "standard-clojure-style-haxe", rev = "7ce472950cc0e1baad7d028fd667100d33eb342a", type = "github" }
 
 [taplo]
 args = ["format", "*@"]

@@ -1,4 +1,16 @@
 {
+  "flakes": {
+    "github:john-shaffer\/standard-clojure-style-haxe#default": {
+      "locked": {
+        "narHash": "sha256-s8Y12zed5V+xvfuqXCTqnLbtT8AS5eHpbqoqWZhx9cU=",
+        "owner": "john-shaffer",
+        "repo": "standard-clojure-style-haxe",
+        "rev": "7ce472950cc0e1baad7d028fd667100d33eb342a",
+        "type": "github"
+      },
+      "package": "default"
+    }
+  },
   "nixpkgs": {
     "locked": {
       "lastModified": 1790218706,

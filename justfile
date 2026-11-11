@@ -38,7 +38,6 @@ build:
 # Format source
 format:
     just run format
-    standard-clj fix
 
 # Jar runner that is quick to build for development
 _jar-app-path:

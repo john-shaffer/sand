@@ -1,0 +1,42 @@
+name = "Format Clojure files with standard-clj"
+
+[setup.files."src/example.clj"]
+content = """
+(ns example
+  (:require [clojure.string :as str]
+            [clojure.set :as set]))
+
+(defn hello [name]
+    (str "Hello, "
+                name))
+"""
+
+[setup.files."deps.edn"]
+content = """
+{:paths ["src"]
+    :deps {}}
+"""
+
+[[steps]]
+run = "sand format src/example.clj deps.edn"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."src/example.clj"]
+content = """
+(ns example
+  (:require
+   [clojure.set :as set]
+   [clojure.string :as str]))
+
+(defn hello [name]
+  (str "Hello, "
+    name))
+"""
+
+[steps.expected.files."deps.edn"]
+content = """
+{:paths ["src"]
+ :deps {}}
+"""
