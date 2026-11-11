@@ -35,6 +35,9 @@ _bench-fixtures:
 build:
     nix build
 
+check: && test
+    nix flake check
+
 # Format source
 format:
     just run format
