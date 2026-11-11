@@ -213,7 +213,7 @@
    except for those in `absolute-roots`, which are canonical paths that
    were given as absolute paths."
   [formatter {:keys [absolute-roots dir]} fnames]
-  (let [{:strs [args args-config bin-name config-filenames package]} formatter
+  (let [{:strs [args args-config args-per-file bin-name config-filenames package]} formatter
         grouped-by-config (u/group-paths-by-ancestor
                             #(find-filename-in % config-filenames)
                             fnames)
@@ -244,12 +244,17 @@
                         shell-args))
 
                     "*@"
-                    [(mapcat
-                       (fn [arg]
-                         (if (= "*@" arg)
-                           fnames
-                           [arg]))
-                       shell-args)]
+                    (let [file-args (if args-per-file
+                                      (for [fname fnames
+                                            arg args-per-file]
+                                        (if (= "@" arg) fname arg))
+                                      fnames)]
+                      [(mapcat
+                         (fn [arg]
+                           (if (= "*@" arg)
+                             file-args
+                             [arg]))
+                         shell-args)])
 
                     (throw (ex-info "Invalid formatter" {:formatter formatter})))]
           (for [sas shell-arg-seqs]

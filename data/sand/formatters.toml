@@ -2,6 +2,9 @@
 #   "@" means one file can be passed as an argument here.
 #   "*@" means multiple files can be passed as separate arguments here.
 # args-config: Like args, but used when the config file is detected.
+# args-per-file: Args to repeat once for each file, with "@" replaced by the
+#   file. If given, "*@" in args or args-config expands to these.
+#   For formatters that need a flag before each file.
 # bin-name: Binary to run, if different from the package's default.
 # config-filenames: List of config filenames to look for.
 #   These can be glob patterns, like "*.csproj".
@@ -78,7 +81,8 @@ extensions = ["java"]
 package = "google-java-format"
 
 [haxe-formatter]
-args = ["-s", "*@"]
+args = ["*@"]
+args-per-file = ["-s", "@"]
 bin-name = "haxe-formatter"
 extensions = ["hx"]
 flake = "github:john-shaffer/haxe-formatter-flake"

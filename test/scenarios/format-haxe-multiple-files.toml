@@ -1,0 +1,43 @@
+name = "Format multiple Haxe files"
+
+[setup.files."A.hx"]
+content = """
+class A {
+static function main() {
+trace("a");
+}
+}
+"""
+
+[setup.files."B.hx"]
+content = """
+class B {
+static function main() {
+trace("b");
+}
+}
+"""
+
+[[steps]]
+run = "sand format A.hx B.hx"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."A.hx"]
+content = """
+class A {
+	static function main() {
+		trace("a");
+	}
+}
+"""
+
+[steps.expected.files."B.hx"]
+content = """
+class B {
+	static function main() {
+		trace("b");
+	}
+}
+"""
