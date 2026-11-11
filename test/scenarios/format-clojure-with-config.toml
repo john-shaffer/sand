@@ -1,0 +1,117 @@
+name = "standard-clj uses the nearest .standard-clj.edn or .standard-clj.json"
+
+# Each config ignores a file name that the other doesn't, so a file is only
+# skipped when its own config is passed. "**/" globs keep this independent
+# of the directory that standard-clj resolves config paths against.
+# Every run also gets a file that isn't ignored, since standard-clj fails
+# when every file it is given is ignored.
+[setup.files."edn/.standard-clj.edn"]
+content = """
+{:ignore ["**/edn-ignored.clj"]}
+"""
+
+[setup.files."json/.standard-clj.json"]
+content = """
+{"ignore": ["**/json-ignored.clj"]}
+"""
+
+# The EDN config takes precedence, as in standard-clj itself.
+[setup.files."both/.standard-clj.edn"]
+content = """
+{:ignore ["**/edn-ignored.clj"]}
+"""
+
+[setup.files."both/.standard-clj.json"]
+content = """
+{"ignore": ["**/json-ignored.clj"]}
+"""
+
+[setup.files."both/src/edn-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[setup.files."both/src/json-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[setup.files."edn/src/edn-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[setup.files."edn/src/json-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[setup.files."json/src/edn-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[setup.files."json/src/json-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[setup.files."no-config/src/edn-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[[steps]]
+run = "sand format both/src/edn-ignored.clj both/src/json-ignored.clj edn/src/edn-ignored.clj edn/src/json-ignored.clj json/src/edn-ignored.clj json/src/json-ignored.clj no-config/src/edn-ignored.clj"
+
+[steps.expected]
+exit-code = 0
+
+[steps.expected.files."both/src/edn-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[steps.expected.files."both/src/json-ignored.clj"]
+content = """
+(defn f [x]
+  x)
+"""
+
+[steps.expected.files."edn/src/edn-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[steps.expected.files."edn/src/json-ignored.clj"]
+content = """
+(defn f [x]
+  x)
+"""
+
+[steps.expected.files."json/src/edn-ignored.clj"]
+content = """
+(defn f [x]
+  x)
+"""
+
+[steps.expected.files."json/src/json-ignored.clj"]
+content = """
+(defn f [x]
+    x)
+"""
+
+[steps.expected.files."no-config/src/edn-ignored.clj"]
+content = """
+(defn f [x]
+  x)
+"""
